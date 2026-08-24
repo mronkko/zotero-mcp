@@ -15,6 +15,7 @@ import re
 import sys
 import threading
 import time
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -85,6 +86,126 @@ def _report(message: str) -> None:
         sys.stderr.flush()
     except Exception:
         pass
+
+
+DEFAULT_TERM_WIDTH = 80
+
+# Zotero titles are routinely CJK, and a terminal gives those characters two
+# columns each. Every width budget below is therefore counted in columns, not
+# in characters: measuring a title with len() lets a line that "fits" occupy
+# far more of the row than the budget allowed, wrap, and leave the \r of the
+# next update returning to the start of the wrapped remainder rather than to
+# the start of the line.
+_WIDE_EAST_ASIAN = ("W", "F")
+
+_TRUNCATION_MARKER = "..."
+
+
+def _display_width(text: str) -> int:
+    """Number of terminal columns ``text`` occupies."""
+    return sum(
+        2 if unicodedata.east_asian_width(c) in _WIDE_EAST_ASIAN else 1 for c in text
+    )
+
+
+def _fit_to_width(text: str, max_width: int) -> str:
+    """Longest prefix of ``text`` that fits in ``max_width`` columns.
+
+    A truncated result ends in ``...`` when there is room for the marker. When
+    there is not -- a terminal narrow enough that the marker alone overflows --
+    the budget still wins and the marker is dropped, because a progress line
+    that overflows is the failure this exists to prevent.
+    """
+    if max_width <= 0:
+        return ""
+    if _display_width(text) <= max_width:
+        return text
+
+    marker_width = _display_width(_TRUNCATION_MARKER)
+    budget = max_width - marker_width
+    marker = _TRUNCATION_MARKER
+    if budget <= 0:
+        budget = max_width
+        marker = ""
+
+    kept: list[str] = []
+    used = 0
+    for char in text:
+        char_width = 2 if unicodedata.east_asian_width(char) in _WIDE_EAST_ASIAN else 1
+        if used + char_width > budget:
+            break
+        kept.append(char)
+        used += char_width
+    return "".join(kept) + marker
+
+
+def _progress_line(text: str, term_width: int | None = None) -> str:
+    """A complete ``\r`` progress payload: fitted to the row and self-erasing.
+
+    Padded out to the full budget in *columns* so the write also erases
+    whatever longer line preceded it -- without that, a short title following a
+    long one leaves the previous title's tail on screen. One column is held
+    back so the cursor cannot wrap onto the next row.
+    """
+    if term_width is None:
+        term_width = _terminal_width()
+    max_width = max(0, term_width - 1)
+    fitted = _fit_to_width(text, max_width)
+    padding = " " * max(0, max_width - _display_width(fitted))
+    return f"\r{fitted}{padding}"
+
+
+# Titles are capped well short of the row so the counters stay readable on a
+# wide terminal; the row budget in _progress_line is the hard limit.
+TITLE_WIDTH = 60
+
+
+def _item_progress_line(
+    seen: int, total: int, title: str, term_width: int | None = None
+) -> str:
+    """Progress payload for the embedding pass."""
+    title = _fit_to_width(title or "", TITLE_WIDTH)
+    pct = int(seen / total * 100) if total else 0
+    return _progress_line(
+        f"  [{pct:3d}%] {seen}/{total} — {title or 'processing...'}", term_width
+    )
+
+
+def _scan_progress_line(
+    item_idx: int,
+    total_local: int,
+    skipped_existing: int,
+    extracted: int,
+    display: str,
+    term_width: int | None = None,
+) -> str:
+    """Progress payload for the fulltext-extraction scan.
+
+    The prefix carries the counters, so only ``display`` is cut when the row
+    runs out -- losing the position in a multi-hour scan to fit one more
+    character of a title is the wrong trade.
+    """
+    status_parts = []
+    if skipped_existing > 0:
+        status_parts.append(f"{skipped_existing} up to date")
+    if extracted > 0:
+        status_parts.append(f"{extracted} extracted")
+    status = f" ({', '.join(status_parts)})" if status_parts else ""
+    prefix = f"  Processing {item_idx}/{total_local}{status} — "
+
+    if term_width is None:
+        term_width = _terminal_width()
+    remaining = max(0, (term_width - 1) - _display_width(prefix))
+    display = _fit_to_width(display or "", min(TITLE_WIDTH, remaining))
+    return _progress_line(f"{prefix}{display or 'working...'}", term_width)
+
+
+def _terminal_width() -> int:
+    """Current terminal width, falling back when stderr is not a terminal."""
+    try:
+        return os.get_terminal_size().columns
+    except (OSError, ValueError):
+        return DEFAULT_TERM_WIDTH
 
 
 def _pid_is_alive(pid: int) -> bool:
@@ -1506,37 +1627,19 @@ class ZoteroSemanticSearch:
                         elif first_author:
                             citation = f"{first_author} — "
                         display = f"{citation}{title}"
-                        if len(display) > 60:
-                            display = display[:57] + "..."
 
-                        # Single-line progress with \r overwrite
-                        # MUST fit within terminal width to prevent wrapping
-                        try:
-                            try:
-                                term_width = os.get_terminal_size().columns
-                            except (OSError, ValueError):
-                                term_width = 80
-                            # Build the line and truncate to terminal width - 1
-                            # (- 1 to prevent the cursor from wrapping to next line)
-                            max_len = term_width - 1
-                            status_parts = []
-                            if skipped_existing > 0:
-                                status_parts.append(f"{skipped_existing} up to date")
-                            if extracted > 0:
-                                status_parts.append(f"{extracted} extracted")
-                            status = f" ({', '.join(status_parts)})" if status_parts else ""
-                            prefix = f"  Processing {item_idx}/{total_local}{status} — "
-                            # Truncate display to fit remaining space
-                            remaining = max_len - len(prefix) - 3  # -3 for "..."
-                            if remaining > 0 and display and len(display) > remaining:
-                                display = display[:remaining] + "..."
-                            line = f"{prefix}{display or 'working...'}"
-                            if len(line) > max_len:
-                                line = line[:max_len]
-                            sys.stderr.write(f"\r{line}{' ' * max(0, max_len - len(line))}")
-                            sys.stderr.flush()
-                        except Exception:
-                            pass
+                        # Single-line progress with \r overwrite, budgeted in
+                        # terminal columns so a wide-character title cannot
+                        # wrap the row (see _progress_line).
+                        _report(
+                            _scan_progress_line(
+                                item_idx,
+                                total_local,
+                                skipped_existing,
+                                extracted,
+                                display,
+                            )
+                        )
 
                         should_extract = True
 
@@ -2645,14 +2748,7 @@ class ZoteroSemanticSearch:
                 nonlocal seen_items
                 seen_items += 1
                 title = item.get("data", {}).get("title", "")
-                if title and len(title) > 60:
-                    title = title[:57] + "..."
-                pct = int(seen_items / total * 100) if total else 0
-                try:
-                    sys.stderr.write(f"\r  [{pct:3d}%] {seen_items}/{total} — {title or 'processing...'}")
-                    sys.stderr.flush()
-                except Exception:
-                    pass
+                _report(_item_progress_line(seen_items, total, title))
 
             # Overlap preparation, embedding and commits when the embedding
             # function is configured for concurrent requests. Off unless
