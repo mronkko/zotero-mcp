@@ -1000,7 +1000,7 @@ def advanced_search(
             # Everything else: the comparison lives in search_semantics so the
             # SQLite backend evaluates the identical rules — see that module's
             # docstring for what went wrong when they were stated twice.
-            return _semantics.matches(values, target, operation)
+            return _semantics.matches(values, target, operation, field=condition["field"])
 
         # #167: try the SQLite metadata backend first — it replaces the
         # client-side paging loop below entirely when it can serve the

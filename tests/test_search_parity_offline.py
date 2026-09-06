@@ -155,6 +155,15 @@ for _op in ["isGreaterThan", "isLessThan", "isBefore", "isAfter"]:
         ("dateModified", _op, "2024-03-01"),
     ]
 
+# Range operators on `date`, where the API sees only the display text and has
+# to re-derive the ISO prefix that SQL reads straight out of the stored value.
+# The corpus deliberately includes the awkward display forms: multipart
+# ("October 1, 2016"), partial ("2017", "03/2021"), slash-separated
+# ("2022/11/28"), month-name ("Nov/Dec 1990") and unparseable ("in press").
+for _op in ["isGreaterThan", "isLessThan", "isBefore", "isAfter"]:
+    for _value in ["2024", "1900", "2016", "2018-05-01", "2016-06-01", "2021-03-00"]:
+        CONDITION_CASES.append(("date", _op, _value))
+
 # Field-name aliases must resolve identically on both sides.
 for _alias in ["author", "authors", "creators", "tags", "itemtype", "doi"]:
     CONDITION_CASES.append((_alias, "contains", "a"))

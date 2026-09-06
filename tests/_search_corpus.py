@@ -159,6 +159,12 @@ CORPUS: list[Item] = [
     Item("PARTDT01", title="Year Only Partial Date", date="2017-00-00 2017"),
     Item("PARTDT02", title="Month And Year Partial Date", date="2021-03-00 03/2021"),
     Item("PARTDT03", title="Slash Separated Full Date", date="2022-11-28 2022/11/28"),
+    Item("PARTDT04", title="Month Name Display Date", date="1990-11-00 Nov/Dec 1990"),
+    # Zotero stores a date it cannot parse as year 0000. Such an item carries no
+    # chronological information, so it must satisfy NO range operator on either
+    # backend — in particular it must not sort "before" every year.
+    Item("NODATE01", title="Unparseable Date", date="0000-00-00 in press"),
+    Item("NODATE02", title="No Date At All"),
 
     # --- group library, to keep library scoping honest ---
     Item("GRPITEM1", title="Group Library Paper about quantum",

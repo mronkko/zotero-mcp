@@ -302,9 +302,16 @@ _DATE_DISPLAY_SQL = (
     "JOIN itemDataValues v ON d.valueID = v.valueID JOIN fields f ON d.fieldID = f.fieldID "
     "WHERE d.itemID = i.itemID AND f.fieldName = 'date')"
 )
+# A date Zotero could not parse is stored with year 0000 ("0000-00-00 in press",
+# "0000-00-00 submitted"). Those carry no chronological information, so the
+# subquery excludes them and yields NULL — which satisfies no comparison. Left
+# in, "0000-00-00" would sort before every real year and "in press" would come
+# back as published before 1900. tools/search.py fails closed the same way, by
+# way of `parse_display_date` returning None.
 _DATE_RANGE_SQL = (
     "(SELECT SUBSTR(v.value, 1, 10) FROM itemData d JOIN itemDataValues v ON d.valueID = v.valueID "
-    "JOIN fields f ON d.fieldID = f.fieldID WHERE d.itemID = i.itemID AND f.fieldName = 'date')"
+    "JOIN fields f ON d.fieldID = f.fieldID WHERE d.itemID = i.itemID AND f.fieldName = 'date' "
+    "AND SUBSTR(v.value, 1, 4) != '0000')"
 )
 _YEAR_FIELD_SQL = (
     "(SELECT SUBSTR(v.value, 1, 4) FROM itemData d JOIN itemDataValues v ON d.valueID = v.valueID "

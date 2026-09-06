@@ -30,6 +30,7 @@ is a fix, not a divergence, and belongs to each backend.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from typing import Iterable, Sequence
 
@@ -164,6 +165,118 @@ def register_sqlite_functions(conn: sqlite3.Connection) -> None:
         conn.create_function(SQLITE_NORM_FUNCTION, 1, normalize)
 
 
+#: Month names and abbreviations, as they appear in Zotero display dates.
+_MONTH_NAMES: dict[str, int] = {}
+for _i, _full in enumerate(
+    ["january", "february", "march", "april", "may", "june", "july",
+     "august", "september", "october", "november", "december"], start=1
+):
+    _MONTH_NAMES[_full] = _i
+    _MONTH_NAMES[_full[:3]] = _i
+_MONTH_NAMES["sept"] = 9
+
+#: A four-digit year standing alone, i.e. not part of a longer run of digits.
+#: "20201203" and "20020" must NOT yield a year — Zotero cannot parse them
+#: either and stores them as 0000.
+_YEAR_RE = re.compile(r"(?<!\d)(1\d{3}|2\d{3})(?!\d)")
+_ISO_RE = re.compile(r"^\s*(1\d{3}|2\d{3})[-/.](\d{1,2})(?:[-/.](\d{1,2}))?(?!\d)")
+_NUM_MDY_RE = re.compile(r"(?<!\d)(\d{1,2})[/.-](\d{1,2})[/.-](1\d{3}|2\d{3})(?!\d)")
+_NUM_MY_RE = re.compile(r"(?<!\d)(\d{1,2})[/.-](1\d{3}|2\d{3})(?!\d)")
+_MONTH_WORD_RE = re.compile(
+    r"(?<![a-z])(" + "|".join(sorted(_MONTH_NAMES, key=len, reverse=True)) + r")(?![a-z])"
+)
+_SMALL_NUM_RE = re.compile(r"(?<!\d)(\d{1,2})(?!\d)")
+
+
+def _iso(year: int, month: int = 0, day: int = 0) -> str:
+    """Zotero's stored form: zero-padded, ``00`` for the parts it did not learn.
+
+    A month or day outside its real range is dropped rather than emitted: an
+    impossible ``"2021-31-07"`` would sort *after* December in the string
+    comparison these values exist for. Where the two are simply the wrong way
+    round ("31.7.2021", written day-first) the swap is recovered instead.
+    """
+    if month > 12 and day == 0 or (month > 12 and 1 <= day <= 12):
+        month, day = day, month
+    if not 1 <= month <= 12:
+        month, day = 0, 0
+    if not 1 <= day <= 31:
+        day = 0
+    return f"{year:04d}-{month:02d}-{day:02d}"
+
+
+def parse_display_date(text: str | None) -> str | None:
+    """Re-derive Zotero's ISO date prefix from the display text it exposes.
+
+    Zotero stores a date as ``"<ISO> <display text>"`` and the web/pyzotero API
+    returns only the display half, so the API backend cannot read the ISO
+    prefix the SQLite backend compares against (see ``local_db.py``'s
+    ``_DATE_RANGE_SQL``). This reconstructs it, returning ``YYYY-MM-DD`` with
+    ``00`` for parts the text does not state — the same shape Zotero itself
+    stores, so the two backends order items identically.
+
+    Returns ``None`` when the text states no year. Those are the values Zotero
+    records as ``0000-00-00`` ("in press", "submitted", "n.d."): they carry no
+    chronological information, so a range comparison must reject them rather
+    than guess. Callers rely on that to fail *closed*.
+    """
+    if not text:
+        return None
+    s = text.strip().lower()
+    if not s:
+        return None
+
+    # "2018-05-01", "2022/11/28" — the year leads, so the rest is unambiguous.
+    m = _ISO_RE.match(s)
+    if m:
+        return _iso(int(m.group(1)), int(m.group(2)), int(m.group(3) or 0))
+
+    # "06/01/2012" — Zotero reads bare numeric dates in US month/day/year order.
+    m = _NUM_MDY_RE.search(s)
+    if m:
+        return _iso(int(m.group(3)), int(m.group(1)), int(m.group(2)))
+
+    # "03/2021", "9/1993"
+    m = _NUM_MY_RE.search(s)
+    if m:
+        return _iso(int(m.group(2)), int(m.group(1)))
+
+    year_match = _YEAR_RE.search(s)
+    if year_match is None:
+        return None
+    year = int(year_match.group(1))
+
+    # A month *name* may sit anywhere: "February 2015", "17 July 2000".
+    # Where two month names run together with nothing but punctuation between
+    # them ("Nov/Dec 1990", "Jul. - Aug., 2000") Zotero keeps the LAST of the
+    # run; where they are separated by other content, as when a month is
+    # repeated around a day range ("Jun 8-Jun 11, 2016"), it keeps the first.
+    month_match = _MONTH_WORD_RE.search(s)
+    if month_match is None:
+        return _iso(year)
+    while True:
+        following = _MONTH_WORD_RE.search(s, month_match.end())
+        if following is None or s[month_match.end():following.start()].strip(" .,-/–—"):
+            break
+        month_match = following
+    month = _MONTH_NAMES[month_match.group(1)]
+
+    # The day, if stated, is a 1-2 digit number that is not part of the year.
+    # Blank the year out first so "1990" cannot be mistaken for one, then take
+    # the first number after the month name ("October 1, 2016",
+    # "December 10th-13th 2006") or, failing that, the first one before it
+    # ("17 July 2000", "29th-31st of May 2024"). First, not last: a day range
+    # is stored by its start.
+    masked = s[:year_match.start()] + " " * len(year_match.group(1)) + s[year_match.end():]
+    after = _SMALL_NUM_RE.search(masked, month_match.end())
+    if after is not None:
+        return _iso(year, month, int(after.group(1)))
+    before = _SMALL_NUM_RE.search(masked[: month_match.start()])
+    if before is not None:
+        return _iso(year, month, int(before.group(1)))
+    return _iso(year, month)
+
+
 def _as_float(text: str) -> float | None:
     try:
         return float(text)
@@ -171,14 +284,43 @@ def _as_float(text: str) -> float | None:
         return None
 
 
-def compare(candidate: str, expected: str, operation: str) -> bool:
+#: Fields whose ordering comparisons are chronological rather than textual.
+#: Only ``date`` needs re-deriving: ``dateAdded``/``dateModified`` are already
+#: ISO timestamps, where lexicographic order *is* chronological order.
+DATE_FIELDS: frozenset[str] = frozenset({"date"})
+
+
+def compare(candidate: str, expected: str, operation: str, field: str | None = None) -> bool:
     """Evaluate one operator against one candidate value.
 
     Both sides are normalized first. Ordering operators compare numerically
     when both sides parse as numbers and lexically otherwise, so ``year
     isGreaterThan 2010`` orders by magnitude while a string field still
     orders sensibly.
+
+    *field* selects the ordering rule. On ``date``, an ordering operator
+    compares the ISO prefix re-derived by :func:`parse_display_date` against
+    the raw query value — exactly what the SQLite backend compares
+    (``local_db.py``'s ``_DATE_RANGE_SQL``, ``SUBSTR(value, 1, 10)``) and what
+    Zotero's own ``search.js`` does. Without it a display date such as
+    ``"Nov/Dec 1990"`` fell through to a *lexicographic* comparison, where
+    ``"nov/dec 1990" > "2024"`` is true and a "since 2024" filter returned
+    papers from 1990.
     """
+    if operation in RANGE_OPS and field and field.lower() in DATE_FIELDS:
+        left_iso = parse_display_date(candidate)
+        if left_iso is None:
+            # No year in the text, or no date at all: no chronological
+            # information, so it satisfies no ordering comparison. Fail closed
+            # rather than guess — the same rule :func:`matches` applies to an
+            # item with no value for the field at all.
+            return False
+        # Compared against the *unpadded* query value, as SQL does: "2024-00-00"
+        # sorts after "2024", so `isAfter "2024"` includes items dated 2024.
+        if operation in {"isGreaterThan", "isAfter"}:
+            return left_iso > expected.strip()
+        return left_iso < expected.strip()
+
     left = normalize(candidate)
     right = normalize(expected)
 
@@ -207,7 +349,12 @@ def compare(candidate: str, expected: str, operation: str) -> bool:
     return left < right
 
 
-def matches(values: Sequence[str] | Iterable[str], expected: str, operation: str) -> bool:
+def matches(
+    values: Sequence[str] | Iterable[str],
+    expected: str,
+    operation: str,
+    field: str | None = None,
+) -> bool:
     """Evaluate an operator against a field that may hold several values.
 
     An item with no value for the field satisfies *nothing* — not even a
@@ -219,7 +366,7 @@ def matches(values: Sequence[str] | Iterable[str], expected: str, operation: str
     if not values:
         return False
 
-    comparisons = [compare(value, expected, operation) for value in values]
+    comparisons = [compare(value, expected, operation, field=field) for value in values]
     if operation in NEGATED:
         return all(comparisons)
     return any(comparisons)
