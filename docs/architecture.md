@@ -51,7 +51,7 @@ puts that cost straight back.
 | package root (flat) | MCP wiring (`_app`, `_context`, `server`, `toolsets`, `prompts`, `resources`), vocabulary and config (`config`, `config_light`, `schema`, `identifiers`, `search_semantics`), `_shim`, `_version`, and — for now — `utils.py` and every module not yet claimed by a package below | `__init__.py` exports `__version__` eagerly and exposes `mcp` lazily (PEP 562); nothing else. `_version.py` never moves: `[tool.hatch.version]` reads it by path. | now |
 | package root, after `utils.py` is split | `utils.py` is not replaced by a `utils/` package. Its process-level odds and ends stay flat as `distribution.py`, `paths.py`, `_stdio.py` and `search_variants.py`; its formatting functions go to `formatting/` and its backend selection to `backends/`. | Each stays stdlib-only, as `utils.py` largely is today. | target |
 | `backends/` | Systems that hold library data: `library.py` (the `Protocol` and its fallback), `api.py`, `sqlite.py`, `bibtex.py`, `webdav.py`, `scite.py`, plus backend `selection.py` and `pagination.py` | Empty `__init__.py`. No pyzotero, no sqlite connection, no network client at import time. `pagination.py` must stay stdlib-only: `cli_standalone.py` imports it at top level and defers pyzotero. | target |
-| `attachments/` | Zotero's word for the files under an item: their text (`extract.py`, `fulltext_cache.py`), PDF and EPUB access (`pdf.py`, `pdf_layout.py`, `epub.py`) and annotation import (`pdfannots.py`, `pdfannots_installer.py`). Where to find an open-access copy (`openaccess.py`) still has to move here. | `__init__.py` is a docstring and nothing else. PyMuPDF (`fitz`) and `ebooklib` are optional dependencies and are imported inside functions, never at module scope. | now |
+| `attachments/` | Zotero's word for the files under an item: their text (`extract.py`, `fulltext_cache.py`), PDF and EPUB access (`pdf.py`, `pdf_layout.py`, `epub.py`) and annotation import (`pdfannots.py`, `pdfannots_installer.py`). Finding an open-access copy of a paper belongs here too, as `openaccess.py` — a destination, not an existing module: that code is in `tools/` today, the Unpaywall / Semantic Scholar / publisher-page download cascade behind `zotero_add_item` in `tools/_helpers.py` and the OpenAlex queries that surface the DOIs to try in `tools/discovery.py`. Extracting it is a later PR. | `__init__.py` is a docstring and nothing else. PyMuPDF (`fitz`) and `ebooklib` are optional dependencies and are imported inside functions, never at module scope. | now |
 | `metadata_sources/` | Where bibliographic metadata comes from outside Zotero: `crossref.py`, `arxiv.py`, `isbn.py`, `webpage.py`, `citation_import.py`, `html_metadata.py` | Empty `__init__.py`. No `requests` at import time. | target |
 | `semantic_search/` | The feature's own name in the CLI and the config file: `engine.py`, `chroma.py`, `batch/`, `embeddings/`, and the pieces split out of the engine (`lock`, `chunking`, `reranker`, `settings`, `documents`, `sync_state`, `sources/`, `indexer`, `query`, …) | `__init__.py` is a lazy forwarder to `engine`; it imports nothing. This is the strictest rule in the tree: `_app.py` and `cli.py` both decide from config *whether* to use semantic search, and both gates are only meaningful while ChromaDB is still unimported (#485). | target |
 | `cli/` | Console commands: `manage.py`, `standalone.py`, `envelope.py`, `wizard.py`, `updater.py`, `skill_install.py`, `semantic_db.py`, and `__main__.py` | `__init__.py` forwards `main` permanently (it is an entry-point target, not a deprecation shim) and imports nothing else. The `#485` config gates live here. | target |
@@ -165,7 +165,10 @@ adding a directory:
 - A directory named `tests/cli/` with an `__init__.py` makes `cli` importable as a *top-level* package while
   `tests/` is on `sys.path`. Before adding one, check that the name is not already resolvable:
   `python -c "import importlib.util as u; print([n for n in ('backends','attachments','metadata_sources','semantic_search','cli','formatting','tools') if u.find_spec(n)])"`
-  must print `[]`.
+  **must not contain the name you are about to add.** It is not empty any more and is not meant to be: run
+  under pytest's `sys.path` it prints `['attachments']`, because `tests/attachments/` already exists. (In a
+  plain interpreter with only `src/` on the path it prints `[]` — that run proves nothing, since it is
+  `tests/` on the path that creates the collision.)
 - A test that moves one level deeper must not compute the repo root with `parents[1]`. `tests/conftest.py`
   can, because it sits at the top of `tests/`; a file in `tests/backends/` needs `parents[2]`.
 
@@ -198,8 +201,11 @@ A module that moves leaves a **lazy PEP 562 forwarder** at its old path, built b
 # src/zotero_mcp/client.py, after the move
 from zotero_mcp._shim import forwarder
 
+__all__: list[str] = []
 __getattr__ = forwarder("zotero_mcp.client", "zotero_mcp.backends.api")
 ```
+
+The empty `__all__` is deliberate, and is what the star-import bullet below turns on.
 
 `forwarder(old, new)` returns a module-level `__getattr__`. Four properties matter:
 
@@ -212,12 +218,14 @@ __getattr__ = forwarder("zotero_mcp.client", "zotero_mcp.backends.api")
 - **Patching a name on a shim does not reach the new module.** `monkeypatch.setattr("zotero_mcp.client.get_zotero_client", ...)`
   sets an attribute on the shim module object; callers inside `backends/api.py` look the name up on their own
   module and never see it. That is the whole reason `tests/test_module_layout.py` exists.
-- **`from <old path> import *` forwards nothing, silently.** A star-import (and `dir()`) reads the module's
-  own `__dict__` and its `__all__`, neither of which a `__getattr__` contributes to — and the dunder guard
-  makes `__all__` itself unreachable — so the caller binds only the shim file's own globals (`forwarder`),
-  gets none of the moved names and no `MovedModuleWarning`, then fails later with a `NameError`. Nothing
-  in-tree star-imports, but an external caller that does gets no deprecation notice at all: worth a release
-  note when a widely imported module moves.
+- **`from <old path> import *` forwards nothing, silently.** A star-import reads the module's `__all__`,
+  which a `__getattr__` does not contribute to. Every shim declares a real `__all__: list[str] = []` in the
+  file, which shadows `__getattr__` entirely for that name — a probe returns `[]` and does not raise, so the
+  dunder guard never comes into it — and an empty `__all__` binds *nothing at all*, not even the shim file's
+  own `forwarder`. The caller gets none of the moved names and no `MovedModuleWarning`, then fails later with
+  a `NameError`. (`dir()` is the same story from the module's own `__dict__`.) Nothing in-tree star-imports,
+  but an external caller that does gets no deprecation notice at all: worth a release note when a widely
+  imported module moves.
 
 `new` may also be a `{name: module_path}` map, for a module that was split across several new homes.
 
@@ -225,6 +233,14 @@ __getattr__ = forwarder("zotero_mcp.client", "zotero_mcp.backends.api")
 guards: no test file may patch or import a shim's old path, and no production module may either. The old
 paths are for *external* callers only. Add a module's row to `SHIMS` in the same commit that adds its
 forwarder; the guards then fail with `file:line: old -> use new` for every internal reference left behind.
+
+**Relative imports are resolved against the importing file's own package before they are matched**, so
+`from . import fulltext_cache` in `local_db.py` is checked as `zotero_mcp.fulltext_cache` and cannot slip
+past the scan. What one costs if it does is usually louder than the absolute form, not quieter: a shim sits
+at `zotero_mcp.X`, while a relative import *inside a subpackage* resolves to `zotero_mcp.<pkg>.X`, which no
+shim occupies — so it raises `ModuleNotFoundError` at import time instead of resolving through one. Only
+`from . import X` at the package root lands on the shim itself and behaves like the absolute form. The guard
+is there to name the fix in the PR making the move, not to prevent a silent wrong-module patch.
 
 **`tests/test_module_layout.py` does not scan itself; every other file under `tests/` is in scope.** The map,
 the unit-test fixtures below it and the docstrings all quote old paths deliberately, and the scanner cannot
@@ -398,7 +414,7 @@ failing anything, and the check that catches it.
 | 5 | Subprocess `-m` targets and console-script entry points still name the old module — a stale editable install keeps resolving them through the shim, so nothing looks wrong locally. | Print `entry_points(group="console_scripts")` after reinstalling; `python -m zotero_mcp.cli version`; `tests/test_skill_install.py::TestCliWiring`, `tests/test_generic_batch_flags.py`. |
 | 6 | Strings derived from module names drift: `getLogger(__name__)` in a moved module no longer matches a literal `"zotero_mcp.extract"` silencer elsewhere, or a `"zotero_mcp.semantic_search" in sys.modules` check stops being true. | `grep -rn 'getLogger("zotero_mcp' src` — every name it prints must exist as a real module; plus the quoted-path guard in `test_module_layout.py`. |
 | 7 | isort reorders a rewritten import block so that a top-level import now precedes a side-effecting one, or closes an import cycle that only lazy imports were avoiding. | `ruff check --select I`; cold `python -c "import zotero_mcp.server"` and `python -m zotero_mcp.cli.standalone --help`; `python scripts/measure_context_cost.py \| shasum` (tool registration order). |
-| 8 | A new `tests/<pkg>/__init__.py` makes `cli`, `tools` or `formatting` importable as a top-level package while `tests/` is on `sys.path`; or a moved test computes the repo root with `parents[1]` and points one level too high. | The `find_spec` line in [§4](#4-test-layout) must print `[]` *before* the directory is added; `grep -rn "parents\[1\]\|parent\.parent" tests/<pkg>/` must be empty. |
+| 8 | A new `tests/<pkg>/__init__.py` makes `cli`, `tools` or `formatting` importable as a top-level package while `tests/` is on `sys.path`; or a moved test computes the repo root with `parents[1]` and points one level too high. | The `find_spec` line in [§4](#4-test-layout) must not list the new name *before* the directory is added (it already lists `attachments`); `grep -rn "parents\[1\]\|parent\.parent" tests/<pkg>/` must be empty. |
 
 Two more, both about the mechanics rather than the behaviour:
 
