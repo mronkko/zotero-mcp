@@ -42,13 +42,14 @@ SHIMS: dict[str, str] = {
     "zotero_mcp.batch_common": "zotero_mcp.semantic_search.batch.common",
     "zotero_mcp.openai_batch": "zotero_mcp.semantic_search.batch.openai",
     "zotero_mcp.gemini_batch": "zotero_mcp.semantic_search.batch.gemini",
-    # `embeddings/` left three explicit shim files rather than one package-level
+    # `embeddings/` left four explicit shim files rather than one package-level
     # forwarder, because a dotted import never consults a parent's `__getattr__`.
     # Each needs its own row: the submodule probe in `_shim_match` sees the shim
     # files themselves on disk and would exempt `zotero_mcp.embeddings.base` from
     # the package row, so only an exact row flags a stale reference to it.
     "zotero_mcp.embeddings": "zotero_mcp.semantic_search.embeddings",
     "zotero_mcp.embeddings.base": "zotero_mcp.semantic_search.embeddings.base",
+    "zotero_mcp.embeddings.ratelimit": "zotero_mcp.semantic_search.embeddings.ratelimit",
     "zotero_mcp.embeddings.registry": "zotero_mcp.semantic_search.embeddings.registry",
 }
 

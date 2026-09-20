@@ -1,6 +1,6 @@
 """Deprecated: ``zotero_mcp.embeddings`` moved to ``zotero_mcp.semantic_search.embeddings``.
 
-Three explicit files, not a ``sys.modules`` alias. A dotted import (``import
+Four explicit files, not a ``sys.modules`` alias. A dotted import (``import
 zotero_mcp.embeddings.base``) never consults a parent package's ``__getattr__``, so each submodule
 needs a real file of its own; and aliasing the old dotted paths to the new module objects would
 make the interpreter execute every provider module a second time under its old name, registering

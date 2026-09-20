@@ -331,6 +331,7 @@ the CHANGELOG.
 | `zotero_mcp.gemini_batch` | `zotero_mcp.semantic_search.batch.gemini` |
 | `zotero_mcp.embeddings` | `zotero_mcp.semantic_search.embeddings` |
 | `zotero_mcp.embeddings.base` | `zotero_mcp.semantic_search.embeddings.base` |
+| `zotero_mcp.embeddings.ratelimit` | `zotero_mcp.semantic_search.embeddings.ratelimit` |
 | `zotero_mcp.embeddings.registry` | `zotero_mcp.semantic_search.embeddings.registry` |
 
 Every shim starts warning in the same release and is removed in the same later one. Those two versions are
@@ -345,7 +346,8 @@ Three notes on the `semantic_search/` rows, because each one is a shape later PR
   a package ahead of a module of the same name in the same directory, so the old path *is* the package
   `__init__.py` and no separate shim file is possible. Read
   [the write hazard](#patching-a-package-as-shim-patches-nothing) before writing a test against it.
-- `embeddings/` leaves **three explicit files**, not one package-level forwarder and not a `sys.modules`
+- `embeddings/` leaves **four explicit files** (`__init__`, `base`, `ratelimit`, `registry` — one per module
+  that was importable at the old path), not one package-level forwarder and not a `sys.modules`
   alias. A dotted import (`import zotero_mcp.embeddings.base`) never consults a parent package's
   `__getattr__`, so each submodule needs a real file; and an alias would let the interpreter execute each
   provider module a second time under its old name, re-running `@register_embedding_function` and silently

@@ -1,4 +1,4 @@
-"""Tests for AdaptiveRateLimiter (src/zotero_mcp/embeddings/ratelimit.py).
+"""Tests for AdaptiveRateLimiter (src/zotero_mcp/semantic_search/embeddings/ratelimit.py).
 
 Every test drives the limiter with a fake, manually-advanced clock so the
 suite never sleeps for real and never depends on wall-clock timing. Coverage:
