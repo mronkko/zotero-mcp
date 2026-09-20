@@ -352,7 +352,15 @@ def package_as_shim(tmp_path, monkeypatch):
 
     A package whose ``__init__`` forwards every name that is not a submodule
     to a submodule of its own (``engine``), which is where the real globals
-    live. PR 4 gives ``cli/`` the same shape.
+    live, plus a second submodule (``chroma``) reached through the package.
+    PR 4 gives ``cli/`` the same shape.
+
+    ``engine`` deliberately holds a global named after that sibling submodule.
+    The real engine has no such collision today, so there the damage of a name
+    missing from ``_SUBMODULES`` is only that the engine (and with it ChromaDB)
+    gets imported to answer the lookup; the decoy makes the other half --
+    binding the engine's global *instead of* the module -- visible now rather
+    than waiting for the first collision to introduce it silently.
 
     It is built here rather than reached under its real name because
     ``tests/test_module_layout.py`` forbids any test file from naming a shim's
@@ -363,7 +371,11 @@ def package_as_shim(tmp_path, monkeypatch):
     monkeypatch.syspath_prepend(str(tmp_path))
     pkg_dir = tmp_path / "pkg_as_shim"
     pkg_dir.mkdir()
+    (pkg_dir / "chroma.py").write_text("MARKER = 'the real submodule'\n")
     (pkg_dir / "engine.py").write_text(
+        "chroma = 'THE ENGINE GLOBAL, NOT THE SUBMODULE'\n"
+        "\n"
+        "\n"
         "def get_client():\n"
         "    return 'REAL CLIENT'\n"
         "\n"
@@ -376,7 +388,7 @@ def package_as_shim(tmp_path, monkeypatch):
     (pkg_dir / "__init__.py").write_text(
         "from zotero_mcp._shim import forwarder\n"
         "\n"
-        "_SUBMODULES = frozenset({'engine'})\n"
+        "_SUBMODULES = frozenset({'engine', 'chroma'})\n"
         "_forward = forwarder(__name__, 'pkg_as_shim.engine')\n"
         "\n"
         "\n"
@@ -388,7 +400,7 @@ def package_as_shim(tmp_path, monkeypatch):
     try:
         yield importlib.import_module("pkg_as_shim")
     finally:
-        _purge("pkg_as_shim", "pkg_as_shim.engine")
+        _purge("pkg_as_shim", "pkg_as_shim.engine", "pkg_as_shim.chroma")
 
 
 class TestPatchingAPackageAsShimPatchesNothing:
@@ -417,13 +429,42 @@ class TestPatchingAPackageAsShimPatchesNothing:
 
     def test_reads_forward_to_the_engine_while_submodules_stay_real(self, package_as_shim):
         """Baseline for the three tests below: the forwarding works, and it
-        does not swallow the submodule it forwards to."""
+        does not swallow the submodules it sits in front of.
+
+        The submodule half runs first, and through an ``import`` statement,
+        because both matter. Once anything has imported ``pkg_as_shim.chroma``
+        the import system has bound ``chroma`` in the package's ``__dict__``,
+        normal attribute lookup finds it there and ``__getattr__`` is never
+        consulted again — so ``package.chroma is <the module>`` holds even
+        with ``_SUBMODULES`` emptied, and asserting it proves nothing.
+
+        What the ``_SUBMODULES`` check actually buys shows up only on the
+        first import of the name: the import system resolves it, so the engine
+        is not imported to answer the lookup (in the real package that import
+        is ChromaDB, and the #485 startup gates are only meaningful while it
+        is unimported), and the engine's own global of that name cannot shadow
+        the module.
+        """
+        assert "pkg_as_shim.engine" not in sys.modules, "precondition: the fixture leaves the engine unimported"
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            from pkg_as_shim import chroma
+
+        assert [w for w in caught if issubclass(w.category, MovedModuleWarning)] == [], (
+            "a submodule name must be resolved by the import system, not by the forwarder"
+        )
+        assert chroma is sys.modules.get("pkg_as_shim.chroma"), (
+            f"the forwarder answered with the engine's global instead of the submodule: {chroma!r}"
+        )
+        assert "pkg_as_shim.engine" not in sys.modules, (
+            "reaching a submodule imported the engine — the package __init__ must import nothing"
+        )
+
         engine = importlib.import_module("pkg_as_shim.engine")
 
         with pytest.warns(MovedModuleWarning):
             assert package_as_shim.get_client is engine.get_client
-
-        assert package_as_shim.engine is engine, "the submodule must not be forwarded"
 
     @pytest.mark.skipif(
         not SHIM_PATHS_ARE_ERRORS,

@@ -14,9 +14,11 @@ from __future__ import annotations
 from zotero_mcp._shim import forwarder
 
 # Names the import system must be allowed to resolve as real submodules rather than forward to the
-# engine. Listed ahead of the split PRs that create them (lock, chunking, ... come out of the engine
-# in PRs 12-15); a name here that has no module on disk simply raises ImportError, as it would have
-# without this package.
+# engine. Four of them are modules today -- `engine`, `chroma`, `batch`, `embeddings`; the rest are
+# listed ahead of the split PRs that create them (`lock`, `chunking`, ... come out of the engine in
+# PRs 12-15), and a name here that has no module on disk simply raises ImportError, as it would have
+# without this package. Nothing prunes this set as those PRs land: a name is needed here from the
+# commit that creates the module, and harmless before it.
 _SUBMODULES = frozenset(
     {
         "engine",
