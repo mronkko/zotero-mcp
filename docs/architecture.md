@@ -200,7 +200,8 @@ from zotero_mcp._shim import forwarder
 __getattr__ = forwarder("zotero_mcp.client", "zotero_mcp.backends.api")
 ```
 
-`forwarder(old, new)` returns a module-level `__getattr__`. Four properties matter:
+`forwarder(old, new, stacklevel=2)` returns a module-level `__getattr__`. Five
+properties matter:
 
 - **Importing the old path costs nothing.** Nothing is imported until a name is actually used, so a stale
   `import zotero_mcp.client` does not drag the new module — or its dependencies — into a cold interpreter.
@@ -217,6 +218,15 @@ __getattr__ = forwarder("zotero_mcp.client", "zotero_mcp.backends.api")
   gets none of the moved names and no `MovedModuleWarning`, then fails later with a `NameError`. Nothing
   in-tree star-imports, but an external caller that does gets no deprecation notice at all: worth a release
   note when a widely imported module moves.
+- **A shim that wraps the closure must pass `stacklevel=3`.** The default 2 is right only when the closure is
+  bound straight to `__getattr__`. A shim with logic of its own — a package-as-shim exempting its real
+  submodules, or an entry-point target forwarded silently — calls the closure from *its* `__getattr__`, one
+  frame further in, and the warning is then attributed to the shim module instead of the caller. That is not
+  cosmetic: CPython's default filters are `default::DeprecationWarning:__main__` followed by
+  `ignore::DeprecationWarning`, and the module they match on is the one the reported frame belongs to, so a
+  misattributed warning is swallowed outright and the deprecation is announced to nobody. It also cannot be
+  caught in-process — `pytest.warns` and `catch_warnings` arm a filter of their own — which is why
+  `tests/test_shim.py` asserts the reported location from a real script subprocess.
 
 `new` may also be a `{name: module_path}` map, for a module that was split across several new homes.
 
@@ -292,20 +302,37 @@ the CHANGELOG.
 | `zotero_mcp.updater` | `zotero_mcp.cli.updater` |
 | `zotero_mcp.skill_install` | `zotero_mcp.cli.skill_install` |
 
-**`zotero_mcp.cli:main` is not on this table's terms.** It is the one name that is forwarded *permanently
-and silently*. A console script records its target at install time, so an installation made before the move
-still has `zotero-mcp = zotero_mcp.cli:main` in its entry-point metadata and resolves `main` through
-`cli/__init__.py` on every invocation. A warning there would print a deprecation notice to a real user's
-terminal each time they run the command, and for a stdio MCP server output on the wrong stream is worse than
-noise. `cli/__init__.py` special-cases `main` ahead of the forwarder; every other attribute of the old
-`cli.py` warns, and `python -m zotero_mcp.cli` keeps working through `cli/__main__.py`, which is real code
-rather than a shim.
-
 Every shim starts warning in the same release and is removed in the same later one. Those two versions are
 `MOVED_IN` and `REMOVED_IN` in `src/zotero_mcp/_shim.py`, and they are written nowhere else: not in this
 table, not in a shim's docstring, not in a comment. The warning text reads them at runtime, so moving the
 release plan is a two-line change. `tests/test_shim.py::test_no_shim_module_names_a_release` fails on a shim
 module, or this document, that spells either version out.
+
+### Entry-point targets are not on this table's terms
+
+A console script records its target when it is **installed**, so every installation made before the move keeps
+resolving an old path on each invocation of the command — there is no import in the user's own code to
+update, and nothing but a reinstall changes it. Worse, a console-script wrapper's frame is `__main__`, where
+CPython's default `default::DeprecationWarning:__main__` filter *shows* `DeprecationWarning` subclasses. A
+warning on that resolution therefore prints a deprecation notice to a real user's terminal every time they
+run the command — and for a stdio MCP server, output on the wrong stream is worse than noise.
+
+`main` is consequently forwarded **permanently and silently** from both shims that a console script can
+land on. All three commands this project installs are covered:
+
+| Console script | Target a pre-move install recorded | Where `main` resolves | Warns? |
+|---|---|---|---|
+| `zotero-cli` | `zotero_mcp.cli_standalone:main` | `cli_standalone.py` | never |
+| `zotero-mcp` | `zotero_mcp.cli:main` | `cli/__init__.py` | never |
+| `zotero-mcp-server` | `zotero_mcp.cli:main` | `cli/__init__.py` | never |
+
+Each of those two modules special-cases `main` ahead of the forwarder. Every *other* attribute of the old
+`cli.py` and `cli_standalone.py` still warns — `tests/test_shim.py` pins both halves from a real script
+subprocess, since only a `__main__` frame under the interpreter's default filters shows the difference.
+`python -m zotero_mcp.cli` keeps working through `cli/__main__.py`, which is real code rather than a shim.
+
+`main` is an entry-point target, not a deprecation. Any later move that a console script points at inherits
+this rule, and inherits `stacklevel=3` with it ([§5](#5-shims)).
 
 ## 6. The import-cost budget
 
@@ -402,7 +429,7 @@ failing anything, and the check that catches it.
 | 2 | A `monkeypatch.setattr("<old path>.<name>", ...)` left behind. It lands on the shim, so the test exercises the real implementation or a stale fake, and passes for the wrong reason. | `test_no_test_patches_or_imports_a_shim_path`; count the new-path occurrences with `grep -c` and check the total against the old-path census taken before the move. |
 | 3 | A `__file__`-relative lookup now sits at the wrong depth (`skill_install.py` resolving `skills/`, `utils.py` resolving the install root). Works in-tree, breaks from the wheel. | `tests/cli/test_skill_install.py`, `tests/test_install_hint.py`; `uv build --wheel` then `unzip -l` the result; run `zotero-mcp install-skill --list-targets` from the installed tool, not the checkout. |
 | 4 | A subpackage `__init__.py` imports something heavy, re-creating the 1.45 s regression and defeating the `#485` startup gates. | `pytest tests/test_lightweight_imports.py`; the heavy-dependency probe in [§6](#how-to-measure) must exit `0` with `heavy=[]` for every package but `tools`. |
-| 5 | Subprocess `-m` targets and console-script entry points still name the old module — a stale editable install keeps resolving them through the shim, so nothing looks wrong locally. | Print `entry_points(group="console_scripts")` after reinstalling; `python -m zotero_mcp.cli version`; `tests/cli/test_skill_install.py::TestCliWiring`, `tests/cli/test_generic_batch_flags.py`. |
+| 5 | Subprocess `-m` targets and console-script entry points still name the old module — a stale editable install keeps resolving them through the shim, so nothing looks wrong locally, and the user sees a deprecation notice on every invocation until they reinstall. | Print `entry_points(group="console_scripts")` after reinstalling; `python -m zotero_mcp.cli version`; `tests/cli/test_skill_install.py::TestCliWiring`, `tests/cli/test_generic_batch_flags.py`; `tests/test_shim.py::test_a_stale_console_script_resolves_main_without_warning`, which runs each command's *stale* target from a pip-shaped wrapper and requires both streams silent. |
 | 6 | Strings derived from module names drift: `getLogger(__name__)` in a moved module no longer matches a literal `"zotero_mcp.extract"` silencer elsewhere, or a `"zotero_mcp.semantic_search" in sys.modules` check stops being true. | `grep -rn 'getLogger("zotero_mcp' src` — every name it prints must exist as a real module; plus the quoted-path guard in `test_module_layout.py`. |
 | 7 | isort reorders a rewritten import block so that a top-level import now precedes a side-effecting one, or closes an import cycle that only lazy imports were avoiding. | `ruff check --select I`; cold `python -c "import zotero_mcp.server"` and `python -m zotero_mcp.cli.standalone --help`; `python scripts/measure_context_cost.py \| shasum` (tool registration order). |
 | 8 | A new `tests/<pkg>/__init__.py` makes `cli`, `tools` or `formatting` importable as a top-level package while `tests/` is on `sys.path`; or a moved test computes the repo root with `parents[1]` and points one level too high. | The `find_spec` line in [§4](#4-test-layout) must print `[]` *before* the directory is added; `grep -rn "parents\[1\]\|parent\.parent" tests/<pkg>/` must be empty. |
