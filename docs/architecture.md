@@ -5,10 +5,12 @@ anything — the rules below exist because breaking one of them has cost this pr
 
 ## Status of this document
 
-> **The package tree is still flat.** `src/zotero_mcp/` is a directory of modules with two subpackages
-> (`tools/` and `embeddings/`). The packages described below — `backends/`, `attachments/`,
-> `metadata_sources/`, `semantic_search/`, `cli/`, `formatting/` — **do not exist yet**. They arrive one at a
-> time, and the [shim table](#5-shims) in this document is empty because nothing has moved.
+> **The package tree is still mostly flat.** `src/zotero_mcp/` is a directory of modules with two
+> subpackages: `tools/`, and `semantic_search/` — which now holds the engine, the ChromaDB client, the
+> batch-embedding modules and the former top-level `embeddings/`. The other packages described below —
+> `backends/`, `attachments/`, `metadata_sources/`, `cli/`, `formatting/` — **do not exist yet**. They arrive
+> one at a time; the [shim table](#5-shims) lists every old import path that still resolves, and grows with
+> each move.
 
 This is a target document, not a description of the current directory listing. Every table that follows
 carries a **Status** column with one of two values:
@@ -28,9 +30,10 @@ src/zotero_mcp/
 ├── client.py  local_db.py  better_bibtex_client.py  webdav.py  scite_client.py
 ├── extract.py  fulltext_cache.py  pdf_utils.py  pdf_layout.py  epub_utils.py
 ├── pdfannots_helper.py  pdfannots_downloader.py  citation_import.py  html_metadata.py
-├── semantic_search.py  chroma_client.py  batch_common.py  openai_batch.py  gemini_batch.py
 ├── cli.py  cli_standalone.py  cli_json.py  setup_helper.py  updater.py  skill_install.py
-├── embeddings/        # provider adapters
+├── chroma_client.py  batch_common.py  openai_batch.py  gemini_batch.py  embeddings/
+│                     # shims only -- forwarders to semantic_search/
+├── semantic_search/   # engine.py  chroma.py  batch/  embeddings/
 ├── tools/             # the MCP tool surface, with tools/_helpers.py and tools/write.py
 ├── data/  skills/     # package data, not Python packages
 ```
@@ -49,11 +52,11 @@ puts that cost straight back.
 | `backends/` | Systems that hold library data: `library.py` (the `Protocol` and its fallback), `api.py`, `sqlite.py`, `bibtex.py`, `webdav.py`, `scite.py`, plus backend `selection.py` and `pagination.py` | Empty `__init__.py`. No pyzotero, no sqlite connection, no network client at import time. `pagination.py` must stay stdlib-only: `cli_standalone.py` imports it at top level and defers pyzotero. | target |
 | `attachments/` | Zotero's word for the files under an item: their text (`extract.py`, `fulltext_cache.py`), PDF and EPUB access (`pdf.py`, `pdf_layout.py`, `epub.py`), annotation import (`pdfannots.py`, `pdfannots_installer.py`), and where to find an open-access copy (`openaccess.py`) | Empty `__init__.py`. PyMuPDF (`fitz`) is an optional dependency and must be imported inside functions, never at module scope in the `__init__`. | target |
 | `metadata_sources/` | Where bibliographic metadata comes from outside Zotero: `crossref.py`, `arxiv.py`, `isbn.py`, `webpage.py`, `citation_import.py`, `html_metadata.py` | Empty `__init__.py`. No `requests` at import time. | target |
-| `semantic_search/` | The feature's own name in the CLI and the config file: `engine.py`, `chroma.py`, `batch/`, `embeddings/`, and the pieces split out of the engine (`lock`, `chunking`, `reranker`, `settings`, `documents`, `sync_state`, `sources/`, `indexer`, `query`, …) | `__init__.py` is a lazy forwarder to `engine`; it imports nothing. This is the strictest rule in the tree: `_app.py` and `cli.py` both decide from config *whether* to use semantic search, and both gates are only meaningful while ChromaDB is still unimported (#485). | target |
+| `semantic_search/` | The feature's own name in the CLI and the config file. `engine.py`, `chroma.py`, `batch/` and `embeddings/` are there now; the pieces split out of the engine (`lock`, `chunking`, `reranker`, `settings`, `documents`, `sync_state`, `sources/`, `indexer`, `query`, …) follow later. | `__init__.py` is a lazy forwarder to `engine`; it imports nothing. This is the strictest rule in the tree: `_app.py` and `cli.py` both decide from config *whether* to use semantic search, and both gates are only meaningful while ChromaDB is still unimported (#485). Measured: 65 modules, `heavy=[]`. | now |
 | `cli/` | Console commands: `manage.py`, `standalone.py`, `envelope.py`, `wizard.py`, `updater.py`, `skill_install.py`, `semantic_db.py`, and `__main__.py` | `__init__.py` forwards `main` permanently (it is an entry-point target, not a deprecation shim) and imports nothing else. The `#485` config gates live here. | target |
 | `formatting/` | Turning field content into display strings: `names.py`, `markup.py`, `display.py` | Empty `__init__.py`, and the modules themselves stay stdlib-only. | target |
 | `tools/` | The MCP tool surface, one module per tool group. Today that includes the single modules `_helpers.py` and `write.py`; both become packages (`_helpers/`, `write/`) at the same dotted paths. | **The one heavy package, deliberately.** Importing it registers every tool by side effect and pulls in FastMCP, pydantic and pyzotero. Nothing outside `server.py` and the CLI's `_import_tools()` may import it at module scope. | now |
-| `embeddings/` | Embedding-provider adapters. Moves under `semantic_search/` unchanged. | Inherits `semantic_search/`'s rule once it moves. | now |
+| `semantic_search/embeddings/` | Embedding-provider adapters, moved under `semantic_search/` unchanged. Importing it registers every provider with ChromaDB, so nothing above it may import it eagerly. The old top-level `embeddings/` is now three forwarder files (see [§5](#5-shims)). | Inherits `semantic_search/`'s rule. | now |
 | `data/`, `skills/` | Package data — a fields table and the `zotero-cli` skill. Not Python packages, and they stay at the package root because docs, scripts and tests address them there (`schema.py` and `skill_install.py` both resolve them relative to `__file__`). | n/a | now |
 
 A reader should be able to guess a package's contents from its name without opening it. `documents`, `text`,
@@ -230,9 +233,11 @@ row 16, so without the exemption no PR could add its own row. The exemption is e
 were scanned. Keep a real reference out of it — if you need to demonstrate one, write it in a unit-test
 fixture with a row that is not in `SHIMS`, as the tests there do.
 
-**With `SHIMS` empty the two whole-tree guards read no files at all** and pass vacuously, so until PR 1 adds
-a row the scan itself is proven by `test_whole_tree_scan_finds_and_formats_real_hits`, which runs it over the
-real tree against a synthetic `zotero_mcp.utils` row and checks the hits and their formatting.
+**An empty `SHIMS` makes the two whole-tree guards read no files at all** and pass vacuously, which is what
+they did in PR 0. `test_whole_tree_scan_finds_and_formats_real_hits` covers that gap either way: it runs the
+same scan over the real tree against a synthetic `zotero_mcp.utils` row and checks the hits and their
+formatting, so the file walk, the line scanner and the message format stay proven no matter what `SHIMS`
+holds.
 
 **A row whose old path becomes a real package matches by prefix, minus the real submodules.** When a flat
 module becomes a package of the same name — the `cli` case, where `zotero_mcp.cli` -> `zotero_mcp.cli.manage`
@@ -252,6 +257,46 @@ Exempting only the row's own `new` submodule would flag every other real submodu
 probe deliberately exempts all of them. The cost is that a moved *function* whose name happens to collide
 with a real submodule would slip through; do not create that collision (see the naming rule in
 [§2](#2-naming-rules)).
+
+### Patching a package-as-shim patches nothing
+
+This is the one trap a package-as-shim adds over a plain shim file, and it costs a test that looks correct:
+
+```python
+# Silently does nothing. The test passes, against the real client.
+monkeypatch.setattr(zotero_mcp.semantic_search, "get_zotero_client", fake)
+```
+
+The write lands in the **package's** `__dict__`. Every read inside `engine.py` resolves the *engine's* own
+global and never sees it, so the code under test runs unchanged. `tests/test_module_layout.py` cannot catch
+this: it reads imports and quoted paths, and here the old path is a module object held in a variable.
+
+What does catch it, incidentally, is the forwarder's own warning: `monkeypatch.setattr` reads the old value
+before writing the new one, that read goes through `__getattr__`, and [the gate](#the-movedmodulewarning-gate)
+makes the warning an error — so the patch fails at its own line. Two things follow, and neither is obvious:
+
+- **A bare assignment slips past.** `zotero_mcp.semantic_search.get_zotero_client = fake` reads nothing, so
+  nothing warns and nothing fails. It still patches nothing.
+- **Any such write silences the forwarder for that name, permanently.** A module `__getattr__` runs only when
+  normal lookup fails, so once the name is in the package's `__dict__` it is never consulted again. With the
+  gate off (`ZOTERO_MCP_ALLOW_SHIM_PATHS=1`), `monkeypatch`'s *teardown* writes the value it read — the
+  engine's real function — back onto the package, leaving the name shadowed for the rest of the process, so a
+  later identical patch is not caught either.
+
+> **Patch the module that holds the name.** `zotero_mcp.semantic_search.engine.get_zotero_client`, never
+> `zotero_mcp.semantic_search.get_zotero_client`. This is the [one seam rule](#3-how-tools-reach-helpers-and-why-serverpy-is-a-facade)
+> restated for a shimmed package: the forwarder resolves *reads*, and nothing resolves writes.
+
+`tests/test_shim.py::TestPatchingAPackageAsShimPatchesNothing` pins all of the above against a synthetic
+package built in this shape — synthetic because a write to the real one would leak into the rest of the
+suite, and because a test file may not name a shim's old path at all. `cli/` gets the same shape, so it
+inherits the same trap and the same tests.
+
+The alternative, a `ModuleType` subclass whose `__setattr__` refuses the write, was considered and not taken:
+it has to allow every dunder *and* every submodule binding (the import system sets those with `setattr`), it
+breaks a legitimate `mock.patch("<pkg>.engine", ...)` unless it probes `sys.modules` on every write, and on
+`cli/` — whose `__init__` forwards `main` permanently rather than as a deprecation — it would turn a
+supported path's silent no-op into a hard error.
 
 ### The `MovedModuleWarning` gate
 
@@ -279,13 +324,34 @@ the CHANGELOG.
 
 | Old import path | New import path |
 |---|---|
-| _(none yet — no module has moved)_ | |
+| `zotero_mcp.semantic_search` | `zotero_mcp.semantic_search.engine` |
+| `zotero_mcp.chroma_client` | `zotero_mcp.semantic_search.chroma` |
+| `zotero_mcp.batch_common` | `zotero_mcp.semantic_search.batch.common` |
+| `zotero_mcp.openai_batch` | `zotero_mcp.semantic_search.batch.openai` |
+| `zotero_mcp.gemini_batch` | `zotero_mcp.semantic_search.batch.gemini` |
+| `zotero_mcp.embeddings` | `zotero_mcp.semantic_search.embeddings` |
+| `zotero_mcp.embeddings.base` | `zotero_mcp.semantic_search.embeddings.base` |
+| `zotero_mcp.embeddings.registry` | `zotero_mcp.semantic_search.embeddings.registry` |
 
 Every shim starts warning in the same release and is removed in the same later one. Those two versions are
 `MOVED_IN` and `REMOVED_IN` in `src/zotero_mcp/_shim.py`, and they are written nowhere else: not in this
 table, not in a shim's docstring, not in a comment. The warning text reads them at runtime, so moving the
 release plan is a two-line change. `tests/test_shim.py::test_no_shim_module_names_a_release` fails on a shim
 module, or this document, that spells either version out.
+
+Three notes on the `semantic_search/` rows, because each one is a shape later PRs reuse:
+
+- The first row is a **package-as-shim**: `semantic_search.py` became `semantic_search/`, and Python resolves
+  a package ahead of a module of the same name in the same directory, so the old path *is* the package
+  `__init__.py` and no separate shim file is possible. Read
+  [the write hazard](#patching-a-package-as-shim-patches-nothing) before writing a test against it.
+- `embeddings/` leaves **three explicit files**, not one package-level forwarder and not a `sys.modules`
+  alias. A dotted import (`import zotero_mcp.embeddings.base`) never consults a parent package's
+  `__getattr__`, so each submodule needs a real file; and an alias would let the interpreter execute each
+  provider module a second time under its old name, re-running `@register_embedding_function` and silently
+  replacing the class registered under that provider's name.
+- `embeddings/providers/` gets **no shim**. Nothing outside the package ever referenced it; the providers are
+  reached through the registry.
 
 ## 6. The import-cost budget
 
@@ -326,6 +392,7 @@ baseline on your own interpreter before reading anything into a difference.
 | `import zotero_mcp` | 59 | under 100 modules | ~7 ms |
 | `from zotero_mcp.identifiers import normalize_doi` | 61 | under 100 modules | ~6 ms |
 | `from zotero_mcp.schema import valid_fields` | 73 | under 100 modules | ~9-12 ms |
+| `import zotero_mcp.semantic_search` | 65 | under 100 modules | ~7 ms |
 | `import zotero_mcp.config_light` | 81 | under 100 modules | ~10 ms |
 | `import zotero_mcp.server` | 1496 | none — informational | ~650 ms |
 
