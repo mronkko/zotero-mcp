@@ -152,6 +152,45 @@ class TestProbe:
         # The trailing slash matters: bare /api is a 404.
         assert calls[0].endswith("/api/")
 
+    def test_probes_exactly_where_pyzotero_writes(self, monkeypatch):
+        """The probe answers "are local writes available?" about the server
+        pyzotero will actually send those writes to, so it has to read the
+        host off pyzotero rather than name one.
+
+        Writing the host out here is what makes the answer wrong: pyzotero
+        1.15.2 moved local mode from ``localhost`` to ``127.0.0.1``, and where
+        ``localhost`` resolves to ``::1`` while Zotero listens on
+        ``127.0.0.1``, a hardcoded host probes an address nothing answers on
+        and reports "no local writes" for a server the writes would have
+        reached.
+        """
+        from pyzotero import zotero
+
+        _client._local_probe_cache.clear()
+        calls = []
+
+        class _Client:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def get(self, url):
+                calls.append(url)
+                return type("R", (), {"headers": {}})()
+
+        monkeypatch.setattr(_client, "_make_local_http_client", lambda *a, **k: _Client())
+        _client.probe_local_server_id()
+
+        probe = zotero.Zotero(library_id="0", library_type="user",
+                              api_key=None, local=True)
+        try:
+            expected = probe.endpoint.rstrip("/") + "/"
+        finally:
+            probe.client.close()
+        assert calls == [expected]
+
 
 class TestGetLocalWriteClient:
     def test_none_without_a_key(self, local_mode):

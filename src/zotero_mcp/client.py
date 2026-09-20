@@ -473,6 +473,29 @@ def _local_write_enabled() -> bool:
     return raw in {"true", "yes", "1"}
 
 
+@functools.cache
+def _local_api_base() -> str:
+    """The local API base URL pyzotero itself will use.
+
+    Read off pyzotero rather than written out here, for the same reason
+    :func:`_pyzotero_httpx` resolves its module there: the answer has already
+    changed once. pyzotero 1.15.2 moved local mode from ``localhost`` to
+    ``127.0.0.1``, and the two are not interchangeable — where ``localhost``
+    resolves to ``::1`` and Zotero is listening on ``127.0.0.1``, a hardcoded
+    host probes an address nothing answers on and reports "no local writes"
+    for a server the writes would have reached.
+
+    Constructing a Zotero opens no socket. Cached because the answer cannot
+    change within a process.
+    """
+    zot = zotero.Zotero(library_id="0", library_type="user", api_key=None,
+                        local=True)
+    try:
+        return zot.endpoint
+    finally:
+        zot.client.close()
+
+
 def probe_local_server_id(timeout: float = 3.0, force: bool = False) -> str | None:
     """Return the local Zotero server ID, or None if this build has no writes.
 
@@ -489,13 +512,14 @@ def probe_local_server_id(timeout: float = 3.0, force: bool = False) -> str | No
         if server_id or (time.monotonic() - cached_at) < _LOCAL_PROBE_NEGATIVE_TTL:
             return server_id
 
-    # Deliberately not ZOTERO_LOCAL_PORT: pyzotero hardcodes localhost:23119
-    # for local mode, so probing anywhere else could report "writes supported"
-    # for a server the writes will never reach.
+    # Deliberately not ZOTERO_LOCAL_PORT: pyzotero alone decides where local
+    # mode goes, so probing anywhere else could report "writes supported" for
+    # a server the writes will never reach — or, just as wrong, report nothing
+    # for one they would have.
     server_id = None
     try:
         with _make_local_http_client(timeout) as http:
-            resp = http.get("http://localhost:23119/api/")
+            resp = http.get(f"{_local_api_base().rstrip('/')}/")
             server_id = resp.headers.get("zotero-server-id")
     except Exception:
         server_id = None
