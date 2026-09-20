@@ -25,12 +25,32 @@ import pytest
 
 # Old dotted path -> new dotted path. Each move PR appends its own row(s)
 # here as part of moving a module; this map is the single source of truth
-# both guard tests below check against. Empty in PR 0 (scaffolding) because
-# nothing has moved yet: with no rows, the two whole-tree guards below scan
-# nothing at all and pass vacuously. What keeps the scan itself honest until
-# PR 1 adds a row is `test_whole_tree_scan_finds_and_formats_real_hits`,
-# which runs it over the real tree against a synthetic row.
-SHIMS: dict[str, str] = {}
+# both guard tests below check against. It was empty in PR 0 (scaffolding),
+# when nothing had moved yet and the two whole-tree guards below scanned
+# nothing at all; `test_whole_tree_scan_finds_and_formats_real_hits` keeps
+# the scan itself honest either way by running it over the real tree against
+# a synthetic row.
+SHIMS: dict[str, str] = {
+    # PR 3 -- semantic_search/. The first row is a *package-as-shim*: the flat
+    # `semantic_search.py` became a package, so its old path is the package
+    # `__init__.py`, which forwards to `.engine`. `_shim_match` matches that row
+    # on the bare path and on `zotero_mcp.semantic_search.<name>` only where
+    # `<name>` is not a real submodule on disk, so `engine`, `chroma`, `batch`
+    # and `embeddings` are never flagged.
+    "zotero_mcp.semantic_search": "zotero_mcp.semantic_search.engine",
+    "zotero_mcp.chroma_client": "zotero_mcp.semantic_search.chroma",
+    "zotero_mcp.batch_common": "zotero_mcp.semantic_search.batch.common",
+    "zotero_mcp.openai_batch": "zotero_mcp.semantic_search.batch.openai",
+    "zotero_mcp.gemini_batch": "zotero_mcp.semantic_search.batch.gemini",
+    # `embeddings/` left three explicit shim files rather than one package-level
+    # forwarder, because a dotted import never consults a parent's `__getattr__`.
+    # Each needs its own row: the submodule probe in `_shim_match` sees the shim
+    # files themselves on disk and would exempt `zotero_mcp.embeddings.base` from
+    # the package row, so only an exact row flags a stale reference to it.
+    "zotero_mcp.embeddings": "zotero_mcp.semantic_search.embeddings",
+    "zotero_mcp.embeddings.base": "zotero_mcp.semantic_search.embeddings.base",
+    "zotero_mcp.embeddings.registry": "zotero_mcp.semantic_search.embeddings.registry",
+}
 
 # This file lives at the top level of tests/ (never inside a subpackage —
 # see the module docstring in tests/conftest.py for why tests/ has no
