@@ -8,7 +8,7 @@ hand, both keyed on the same ``embedding_model`` string:
   function, reproduced here by :func:`resolve_provider` plus each spec's
   ``ef_factory``.
 - the three near-identical per-provider blocks in
-  ``chroma_client.create_chroma_client`` that merge environment variables into
+  ``chroma.create_chroma_client`` that merge environment variables into
   ``embedding_config``, reproduced here by :func:`merge_env_config` driven by
   each spec's :class:`EnvSpec`.
 
@@ -18,7 +18,7 @@ every index built with it.
 
 This module imports the provider classes at module scope. That is safe in one
 direction only: provider modules depend on ``embeddings.base`` alone, never on
-this module or on ``chroma_client``.
+this module or on ``semantic_search.chroma``.
 """
 
 import dataclasses
@@ -72,9 +72,9 @@ class ProviderSpec:
     ``embedding_model`` (``"qwen"``, ``"embeddinggemma"``) to the concrete
     model name it stands for.
 
-    ``batch`` holds this provider's ``batch_common.BatchAdapter`` when it has
+    ``batch`` holds this provider's ``batch.common.BatchAdapter`` when it has
     one, and ``None`` when it does not. Typed ``Any`` rather than imported:
-    ``batch_common`` is a leaf module and importing it here would make the
+    ``batch.common`` is a leaf module and importing it here would make the
     registry depend on it just to spell a type, for no gain.
     """
 
@@ -108,7 +108,7 @@ def attach_batch_adapter(name: str, adapter: Any) -> ProviderSpec:
     """Attach a ``BatchAdapter`` to an already-registered provider spec.
 
     ``ProviderSpec`` is frozen, so this replaces the stored spec rather than
-    mutating it. ``openai_batch`` and ``gemini_batch`` each call this at module
+    mutating it. ``batch.openai`` and ``batch.gemini`` each call this at module
     scope, which is why importing either module is what makes its provider
     batch-capable — see the note on ``_load_batch_providers`` in ``cli.py``.
     """

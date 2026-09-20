@@ -276,10 +276,10 @@ def _format_chunking_status(status: dict) -> str:
 # Providers with Batch API support, for argparse ``choices=``.
 #
 # Deliberately a literal rather than a call to
-# ``embeddings.registry.batch_capable_providers()``: that list is only
-# populated by importing openai_batch/gemini_batch, which pulls in chromadb
-# (~330ms, measured) — and argparse needs concrete choices while the parser is
-# being built, i.e. on *every* invocation including ``--version`` and
+# ``embeddings.registry.batch_capable_providers()``: that list is only populated
+# by importing ``semantic_search.batch.openai``/``.gemini``, which pulls in
+# chromadb (~330ms, measured) — and argparse needs concrete choices while the
+# parser is being built, i.e. on *every* invocation including ``--version`` and
 # ``--help``. Paying that to render a help string would undo #445, which made
 # this module import nothing heavy at all. ``test_batch_provider_choices_match_registry``
 # fails if this drifts from what is actually registered.

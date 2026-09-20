@@ -8,8 +8,8 @@ HuggingFace stays on the plain base — it runs a local model, so there is no
 request to pace.
 
 ``BaseEmbeddingFunction`` holds the two method bodies that were already
-byte-identical across the concrete providers when they lived in
-``chroma_client.py``, plus ChromaDB's batch query entry point:
+byte-identical across the concrete providers when they all lived in what is now
+``semantic_search/chroma.py``, plus ChromaDB's batch query entry point:
 
 - ``embed_query_text`` -> ``self.__call__([text])[0]``, one query string to one
   vector. OpenAI, HuggingFace and Ollama each carried their own copy of exactly
