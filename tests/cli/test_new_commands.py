@@ -11,8 +11,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zotero_mcp import cli_standalone
-from zotero_mcp.cli_standalone import _CMD_MAP, _split_csv, build_parser
+from zotero_mcp.cli import standalone as cli_standalone
+from zotero_mcp.cli.standalone import _CMD_MAP, _split_csv, build_parser
 
 
 def _args(**kwargs):
@@ -97,7 +97,7 @@ class TestDispatch:
             return "page text"
 
         monkeypatch.setattr(read_pdf_mod, "read_pdf_text", fake)
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
             cli_standalone.cmd_read(args)
         assert called == {"start_page": 3, "end_page": 7, "surface": "cli"}
 
@@ -105,8 +105,8 @@ class TestDispatch:
         args = _args(subcommand="item", item_key="K1", allow_note=False)
         write_mod = MagicMock()
         write_mod.delete_item.return_value = "deleted"
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"), \
-             patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"), \
+             patch("zotero_mcp.cli.standalone._import_tools",
                    return_value=(MagicMock(), MagicMock(), MagicMock(), write_mod, MagicMock())):
             cli_standalone.cmd_delete(args)
         assert write_mod.delete_item.call_args.kwargs["allow_note"] is False
@@ -123,7 +123,7 @@ class TestDispatch:
             return "refs"
 
         monkeypatch.setattr(synthesis_mod, "export_bibliography", fake)
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
             cli_standalone.cmd_export(args)
         assert called["item_keys"] == ["K1", "K2"]
 
@@ -133,8 +133,8 @@ class TestDispatch:
         args = _args(item_keys="K1", query=None, tag=None, add_tags=None,
                      remove_tags=None, set="{not json", remove_keys=None, limit=50)
         write_mod = MagicMock()
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"), \
-             patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"), \
+             patch("zotero_mcp.cli.standalone._import_tools",
                    return_value=(MagicMock(), MagicMock(), MagicMock(), write_mod, MagicMock())):
             with pytest.raises(SystemExit) as exc:
                 cli_standalone.cmd_batch(args)
@@ -146,8 +146,8 @@ class TestDispatch:
         args = _args(item_keys="K1", query=None, tag=None, add_tags=None,
                      remove_tags=None, set="{not json", remove_keys=None,
                      limit=50, json_out=True)
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"), \
-             patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"), \
+             patch("zotero_mcp.cli.standalone._import_tools",
                    return_value=(MagicMock(),) * 5):
             with pytest.raises(SystemExit):
                 cli_standalone.cmd_batch(args)
@@ -160,8 +160,8 @@ class TestDispatch:
                      comment="hi", color=None, add_tags="x,y", remove_tags="z")
         annotations = MagicMock()
         annotations.update_annotation.return_value = "updated"
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"), \
-             patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"), \
+             patch("zotero_mcp.cli.standalone._import_tools",
                    return_value=(MagicMock(), MagicMock(), annotations, MagicMock(), MagicMock())):
             cli_standalone.cmd_annotations(args)
         kwargs = annotations.update_annotation.call_args.kwargs

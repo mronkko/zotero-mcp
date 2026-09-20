@@ -176,7 +176,7 @@ def test_batch_provider_choices_match_registry():
     """
     import zotero_mcp.gemini_batch  # noqa: F401 — registers its batch adapter
     import zotero_mcp.openai_batch  # noqa: F401 — registers its batch adapter
-    from zotero_mcp.cli import BATCH_PROVIDERS
+    from zotero_mcp.cli.manage import BATCH_PROVIDERS
     from zotero_mcp.embeddings.registry import batch_capable_providers
 
     assert set(BATCH_PROVIDERS) == set(batch_capable_providers())

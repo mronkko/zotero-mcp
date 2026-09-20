@@ -12,9 +12,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from conftest import DummyContext, FakeZotero
 
-from zotero_mcp import cli_json
+from zotero_mcp.cli import envelope as cli_json
 from zotero_mcp.library import ApiBackend
-from zotero_mcp.cli_standalone import (
+from zotero_mcp.cli.standalone import (
     _fetch_projected,
     _keys_from_markdown,
     build_parser,
@@ -298,9 +298,9 @@ class TestSearchCommand:
         backend = MagicMock()
         backend.get_items.return_value = {"ABCD1234": _raw("ABCD1234")}
 
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"), \
-             patch("zotero_mcp.cli_standalone._read_backend", return_value=backend), \
-             patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"), \
+             patch("zotero_mcp.cli.standalone._read_backend", return_value=backend), \
+             patch("zotero_mcp.cli.standalone._import_tools",
                    return_value=(search_mod, MagicMock(), MagicMock(), MagicMock(), client)):
             cmd_search(args)
 
@@ -317,8 +317,8 @@ class TestSearchCommand:
         search_mod = MagicMock()
         search_mod.search_items.return_value = "# Results\n"
 
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"), \
-             patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"), \
+             patch("zotero_mcp.cli.standalone._import_tools",
                    return_value=(search_mod, MagicMock(), MagicMock(), MagicMock(), MagicMock())):
             cmd_search(args)
 
@@ -334,9 +334,9 @@ class TestSearchCommand:
         search_mod = MagicMock()
         search_mod.search_items.return_value = "No items found."
 
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"), \
-             patch("zotero_mcp.cli_standalone._read_backend", return_value=MagicMock()), \
-             patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"), \
+             patch("zotero_mcp.cli.standalone._read_backend", return_value=MagicMock()), \
+             patch("zotero_mcp.cli.standalone._import_tools",
                    return_value=(search_mod, MagicMock(), MagicMock(), MagicMock(), MagicMock())):
             cmd_search(args)
 
@@ -352,8 +352,8 @@ class TestGetCommand:
         retrieval = MagicMock()
         retrieval.get_item_metadata.return_value = json.dumps(_raw("ABCD1234"))
 
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"), \
-             patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"), \
+             patch("zotero_mcp.cli.standalone._import_tools",
                    return_value=(MagicMock(), retrieval, MagicMock(), MagicMock(), MagicMock())):
             cmd_get(args)
 
@@ -368,8 +368,8 @@ class TestGetCommand:
         retrieval = MagicMock()
         retrieval.get_item_metadata.return_value = "@article{x,}"
 
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"), \
-             patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"), \
+             patch("zotero_mcp.cli.standalone._import_tools",
                    return_value=(MagicMock(), retrieval, MagicMock(), MagicMock(), MagicMock())):
             cmd_get(args)
 
@@ -381,8 +381,8 @@ class TestGetCommand:
         retrieval = MagicMock()
         retrieval.get_item_fulltext.return_value = "hello world"
 
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"), \
-             patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"), \
+             patch("zotero_mcp.cli.standalone._import_tools",
                    return_value=(MagicMock(), retrieval, MagicMock(), MagicMock(), MagicMock())):
             cmd_get(args)
 
@@ -392,8 +392,8 @@ class TestGetCommand:
 
     def test_unknown_subcommand_is_a_json_error(self, capsys):
         args = _args(subcommand="nonsense")
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"), \
-             patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"), \
+             patch("zotero_mcp.cli.standalone._import_tools",
                    return_value=(MagicMock(),) * 5):
             with pytest.raises(SystemExit) as exc:
                 cmd_get(args)

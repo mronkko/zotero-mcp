@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from zotero_mcp import cli_standalone
+from zotero_mcp.cli import standalone as cli_standalone
 from zotero_mcp.tools import retrieval
 
 

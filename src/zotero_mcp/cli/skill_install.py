@@ -49,7 +49,7 @@ BLOCK_END = f"<!-- END {SKILL_NAME} skill -->"
 
 def packaged_skill_dir() -> Path:
     """Where the skill lives inside the installed package."""
-    return Path(__file__).resolve().parent / "skills" / SKILL_NAME
+    return Path(__file__).resolve().parents[1] / "skills" / SKILL_NAME
 
 
 def skill_description() -> str:

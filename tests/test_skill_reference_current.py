@@ -59,7 +59,7 @@ class TestSkillAccuracy:
     def _cli_tokens():
         import argparse
 
-        from zotero_mcp.cli_standalone import build_parser
+        from zotero_mcp.cli.standalone import build_parser
 
         parser = build_parser()
         commands: set[str] = set()

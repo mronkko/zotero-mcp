@@ -19,7 +19,7 @@ from typing import Any
 
 import pytest
 
-from zotero_mcp import updater
+from zotero_mcp.cli import updater
 
 
 @pytest.fixture
@@ -548,7 +548,7 @@ class TestThirdReviewRound:
 class TestCliOutput:
     def test_success_line_prints_the_installed_version(self, monkeypatch, capsys):
         """The symptom was on the terminal; guard the line that showed the wrong version."""
-        from zotero_mcp import cli
+        from zotero_mcp.cli import manage as cli
 
         monkeypatch.setattr(
             updater, "update_zotero_mcp",
@@ -567,7 +567,7 @@ class TestCliOutput:
 
     def test_up_to_date_line_falls_back_to_the_current_version(self, monkeypatch, capsys):
         """No install ran, so there is no installed_version to show; never print 'None'."""
-        from zotero_mcp import cli
+        from zotero_mcp.cli import manage as cli
 
         monkeypatch.setattr(
             updater, "update_zotero_mcp",

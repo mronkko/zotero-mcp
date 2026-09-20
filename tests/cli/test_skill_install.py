@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from zotero_mcp.skill_install import (
+from zotero_mcp.cli.skill_install import (
     BLOCK_BEGIN,
     BLOCK_END,
     SKILL_NAME,
@@ -125,7 +125,7 @@ class TestRenderedPaths:
     def test_display_path_uses_forward_slashes_under_windows_semantics(self):
         from pathlib import PureWindowsPath
 
-        from zotero_mcp.skill_install import _display_path
+        from zotero_mcp.cli.skill_install import _display_path
 
         root = PureWindowsPath(r"C:\Users\me\project")
         target = root / ".agents" / "skills" / SKILL_NAME / "SKILL.md"
@@ -138,7 +138,7 @@ class TestRenderedPaths:
     def test_display_path_falls_back_when_not_under_root(self):
         from pathlib import PureWindowsPath
 
-        from zotero_mcp.skill_install import _display_path
+        from zotero_mcp.cli.skill_install import _display_path
 
         target = PureWindowsPath(r"D:\elsewhere\SKILL.md")
         rendered = _display_path(target, PureWindowsPath(r"C:\project"))

@@ -104,7 +104,7 @@ if sys.argv[2] != "__none__":
     (home / ".config" / "zotero-mcp" / "config.json").write_text(sys.argv[2])
 pathlib.Path.home = staticmethod(lambda: home)
 
-from zotero_mcp.cli import _warmup_reranker_in_background
+from zotero_mcp.cli.manage import _warmup_reranker_in_background
 
 _warmup_reranker_in_background()
 for thread in threading.enumerate():
@@ -205,7 +205,7 @@ def test_main_thread_preimport_is_gated(tmp_path, label, raw_config, platform, e
     The real end-to-end path is covered by the test below, which runs on
     whatever host it finds — including the Windows CI job.
     """
-    from zotero_mcp.cli import _should_preimport_semantic
+    from zotero_mcp.cli.manage import _should_preimport_semantic
 
     config_path = tmp_path / "config.json"
     if raw_config is not None:
@@ -231,7 +231,7 @@ def test_preimport_matches_its_own_gate_on_this_host(tmp_path):
         "import json, pathlib, sys\n"
         f"sys.path.insert(0, {SRC!r})\n"
         f"pathlib.Path.home = staticmethod(lambda: pathlib.Path({str(home)!r}))\n"
-        "from zotero_mcp.cli import (_preimport_semantic_search_on_main_thread,\n"
+        "from zotero_mcp.cli.manage import (_preimport_semantic_search_on_main_thread,\n"
         "                            _should_preimport_semantic, _semantic_config_path)\n"
         "want = _should_preimport_semantic(sys.platform, str(_semantic_config_path(None)))\n"
         "_preimport_semantic_search_on_main_thread()\n"

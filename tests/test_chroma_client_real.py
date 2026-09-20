@@ -316,11 +316,13 @@ def test_scoped_deletion_end_to_end_against_real_chroma(client, monkeypatch, tmp
 # is the structural guard against the drift that shipped the dead backfill.
 # (Test-only helpers on fakes must be underscore-prefixed to stay exempt.)
 #
-# Fakes are DISCOVERED, not enumerated: any module-level class in tests/ whose
-# name contains "chroma" (other than this file's imports) is pinned, so a new
-# fake is covered the day it is written. Modules that fail to import (missing
-# optional deps, module-level skips) are skipped; a sanity floor asserts
-# discovery still sees the core fakes.
+# Fakes are DISCOVERED, not enumerated: any module-level class anywhere under
+# tests/ whose name contains "chroma" (other than this file's imports) is
+# pinned, so a new fake is covered the day it is written. The walk recurses,
+# because tests/ has subpackages (tests/cli/, tests/live/) and a fake that
+# moves into one must not fall out of the guard. Modules that fail to import
+# (missing optional deps, module-level skips) are skipped; a sanity floor
+# asserts discovery still sees the core fakes.
 # ---------------------------------------------------------------------------
 
 def _fake_chroma_classes():
@@ -328,11 +330,14 @@ def _fake_chroma_classes():
     import pathlib
 
     classes = []
-    for path in sorted(pathlib.Path(__file__).parent.glob("test_*.py")):
-        if path.stem == pathlib.Path(__file__).stem:
+    root = pathlib.Path(__file__).parent
+    for path in sorted(root.rglob("test_*.py")):
+        if path == pathlib.Path(__file__):
             continue
+        # tests/ is the sys.path entry, so a file in a subpackage is imported
+        # under the same dotted name pytest gives it (tests/cli/x.py -> cli.x).
         try:
-            mod = importlib.import_module(path.stem)
+            mod = importlib.import_module(".".join(path.relative_to(root).with_suffix("").parts))
         except BaseException:  # module-level pytest.skip or missing optional dep
             continue
         for obj in vars(mod).values():

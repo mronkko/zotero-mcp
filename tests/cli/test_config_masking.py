@@ -7,8 +7,8 @@ GOOGLE_API_KEY were printed in full.
 import argparse
 import json
 
-from zotero_mcp import cli_standalone
-from zotero_mcp.cli import obfuscate_config_for_display
+from zotero_mcp.cli import standalone as cli_standalone
+from zotero_mcp.cli.manage import obfuscate_config_for_display
 
 
 def test_provider_api_keys_are_masked():

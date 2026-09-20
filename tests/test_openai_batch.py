@@ -6,7 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from zotero_mcp import openai_batch, setup_helper
+from zotero_mcp import openai_batch
+from zotero_mcp.cli import wizard as setup_helper
 
 if sys.version_info >= (3, 14):
     pytest.skip(

@@ -21,9 +21,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zotero_mcp import cli_standalone
-from zotero_mcp.cli_json import CliError
-from zotero_mcp.cli_standalone import (
+from zotero_mcp.cli import standalone as cli_standalone
+from zotero_mcp.cli.envelope import CliError
+from zotero_mcp.cli.standalone import (
     ZOTERO_COLORS,
     _cli_vocabulary,
     _out,
@@ -47,8 +47,8 @@ def _args(**kwargs):
 def _with_tools(annotations):
     """Patch the handler's environment setup and tool import."""
     return (
-        patch("zotero_mcp.cli_standalone.setup_zotero_environment"),
-        patch("zotero_mcp.cli_standalone._import_tools",
+        patch("zotero_mcp.cli.standalone.setup_zotero_environment"),
+        patch("zotero_mcp.cli.standalone._import_tools",
               return_value=(MagicMock(), MagicMock(), annotations, MagicMock(), MagicMock())),
     )
 
@@ -330,7 +330,7 @@ class TestNotesListJson:
         args = _args(subcommand="list", item_key="ZJDYZVW4", limit=20, full=False,
                      raw_html=False, json_out=True)
         env, tools = _with_tools(annotations)
-        with env, tools, patch("zotero_mcp.cli_standalone._read_backend", return_value=backend):
+        with env, tools, patch("zotero_mcp.cli.standalone._read_backend", return_value=backend):
             cli_standalone.cmd_notes(args)
 
         assert backend.get_items.call_args.args[0] == ["CHENHXNA", "NOTE0002"]
@@ -816,7 +816,7 @@ class TestCliReadImages:
             "# Pages 4-4 of Paper", [{"page": 4, "png": b"\x89PNGdata", "width": 10, "height": 20}]))
         args = _args(item_key="KEY00001", start_page=4, end_page=None, format="image",
                      rect="0.1,0.2,0.3,0.4", out=str(tmp_path), json_out=True)
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
             cli_standalone.cmd_read(args)
         image = json.loads(capsys.readouterr().out)["data"]["images"][0]
         assert image["path"] == os.path.join(str(tmp_path), "KEY00001-p4-region.png")

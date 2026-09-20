@@ -28,7 +28,7 @@ if sys.version_info >= (3, 14):
 pytest.importorskip("chromadb")
 
 from zotero_mcp import semantic_search  # noqa: E402
-from zotero_mcp.cli import _format_chunking_status  # noqa: E402
+from zotero_mcp.cli.manage import _format_chunking_status  # noqa: E402
 
 
 class FakeZoteroClient:

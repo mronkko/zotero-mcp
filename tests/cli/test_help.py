@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from zotero_mcp.cli import main
+from zotero_mcp.cli.manage import main
 
 
 def test_zotero_mcp_help_mentions_batch_indexing(capsys):

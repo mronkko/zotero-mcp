@@ -9,9 +9,9 @@ import pytest
 from conftest import DummyContext
 from pyzotero.errors import LocalAPIDeniedError, TooManyRequestsError, UnsupportedParamsError
 
-from zotero_mcp import cli as _cli
 from zotero_mcp import client as _client
 from zotero_mcp import server
+from zotero_mcp.cli import manage as _cli
 
 
 @pytest.fixture
@@ -246,7 +246,7 @@ class TestSetupDoesNotClobberTheKey:
     def test_standalone_config_rewrite_preserves_local_api(self, tmp_path, monkeypatch):
         """`zotero-mcp setup` rebuilds client_env from scratch; the key lives
         in its own section precisely so that rewrite cannot drop it."""
-        from zotero_mcp import setup_helper
+        from zotero_mcp.cli import wizard as setup_helper
 
         monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
         monkeypatch.setattr(

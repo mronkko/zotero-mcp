@@ -109,7 +109,7 @@ def _render(name: str, parser, out: io.StringIO, depth: int = 2,
 
 
 def build() -> str:
-    from zotero_mcp.cli_standalone import build_parser
+    from zotero_mcp.cli.standalone import build_parser
 
     parser = build_parser()
     out = io.StringIO()

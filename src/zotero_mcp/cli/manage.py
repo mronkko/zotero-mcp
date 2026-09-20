@@ -69,7 +69,7 @@ def load_claude_desktop_env_vars():
     # Global guard to skip Claude detection entirely
     if str(os.environ.get("ZOTERO_NO_CLAUDE", "")).lower() in ("1", "true", "yes"):
         return {}
-    from zotero_mcp.setup_helper import find_existing_claude_configs
+    from zotero_mcp.cli.wizard import find_existing_claude_configs
 
     try:
         # More than one Claude Desktop build can be installed (issue #392);
@@ -830,7 +830,7 @@ def main():
     elif args.command == "install-skill":
         from pathlib import Path as _Path
 
-        from zotero_mcp.skill_install import (
+        from zotero_mcp.cli.skill_install import (
             TARGETS,
             detect_targets,
             format_results,
@@ -1007,7 +1007,7 @@ def main():
         sys.exit(0)
 
     elif args.command == "setup":
-        from zotero_mcp.setup_helper import main as setup_main
+        from zotero_mcp.cli.wizard import main as setup_main
         sys.exit(setup_main(args))
 
     elif args.command == "update-db":
@@ -1325,7 +1325,7 @@ def main():
             sys.exit(1)
 
     elif args.command == "update":
-        from zotero_mcp.updater import update_zotero_mcp
+        from zotero_mcp.cli.updater import update_zotero_mcp
 
         try:
             print("Checking for updates...")

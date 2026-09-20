@@ -10,7 +10,7 @@ import builtins
 
 import pytest
 
-from zotero_mcp import updater
+from zotero_mcp.cli import updater
 
 
 class TestIsNewerVersion:

@@ -18,7 +18,7 @@ def test_restrict_file_permissions_sets_owner_only():
     """_restrict_file_permissions tightens a world-readable file to 0o600."""
     if os.name != "posix":
         pytest.skip("POSIX file permissions only")
-    from zotero_mcp.setup_helper import _restrict_file_permissions
+    from zotero_mcp.cli.wizard import _restrict_file_permissions
 
     fd, path = tempfile.mkstemp()
     os.close(fd)
@@ -32,7 +32,7 @@ def test_restrict_file_permissions_sets_owner_only():
 
 def test_restrict_file_permissions_swallows_errors():
     """Missing file must not raise (best-effort hardening)."""
-    from zotero_mcp.setup_helper import _restrict_file_permissions
+    from zotero_mcp.cli.wizard import _restrict_file_permissions
 
     # Should not raise even though the path does not exist.
     _restrict_file_permissions("/nonexistent/path/to/config.json")

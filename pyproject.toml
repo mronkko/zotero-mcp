@@ -97,11 +97,11 @@ dev = [
 "Changelog" = "https://github.com/54yyyu/zotero-mcp/blob/main/CHANGELOG.md"
 
 [project.scripts]
-zotero-cli = "zotero_mcp.cli_standalone:main"
-zotero-mcp = "zotero_mcp.cli:main"
+zotero-cli = "zotero_mcp.cli.standalone:main"
+zotero-mcp = "zotero_mcp.cli.manage:main"
 # Alias matching the PyPI distribution name, so `uvx zotero-mcp-server serve` works
 # without --from. MCP Registry clients derive the command from the package identifier.
-zotero-mcp-server = "zotero_mcp.cli:main"
+zotero-mcp-server = "zotero_mcp.cli.manage:main"
 
 
 [tool.hatch.version]

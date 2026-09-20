@@ -6,7 +6,7 @@ import pytest
 
 import zotero_mcp.tools.write as write_tools
 from zotero_mcp._context import Context
-from zotero_mcp.cli_standalone import (
+from zotero_mcp.cli.standalone import (
     CLIContext,
     build_parser,
     cmd_add,
@@ -236,9 +236,9 @@ def test_cmd_annotations_passes_json_format(capsys):
     mock_annotations = MagicMock()
     mock_annotations.get_annotations.return_value = "[]"
 
-    with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
+    with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
         with patch(
-            "zotero_mcp.cli_standalone._import_tools",
+            "zotero_mcp.cli.standalone._import_tools",
             return_value=(MagicMock(), MagicMock(), mock_annotations, MagicMock(), MagicMock()),
         ):
             cmd_annotations(args)
@@ -264,7 +264,7 @@ class TestMain:
             raise KeyboardInterrupt
 
         with patch("sys.argv", ["zotero-cli", "config"]):
-            with patch.dict("zotero_mcp.cli_standalone._CMD_MAP", {"config": _raise}):
+            with patch.dict("zotero_mcp.cli.standalone._CMD_MAP", {"config": _raise}):
                 with pytest.raises(SystemExit) as exc:
                     main()
         assert exc.value.code == 130
@@ -274,7 +274,7 @@ class TestMain:
             raise RuntimeError("something broke")
 
         with patch("sys.argv", ["zotero-cli", "config"]):
-            with patch.dict("zotero_mcp.cli_standalone._CMD_MAP", {"config": _raise}):
+            with patch.dict("zotero_mcp.cli.standalone._CMD_MAP", {"config": _raise}):
                 with pytest.raises(SystemExit) as exc:
                     main()
         assert exc.value.code == 1
@@ -302,8 +302,8 @@ class TestCmdSearch:
         mock_search = MagicMock()
         mock_search.search_items.return_value = "# Results"
 
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
-            with patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
+            with patch("zotero_mcp.cli.standalone._import_tools",
                        return_value=(mock_search, MagicMock(), MagicMock(), MagicMock(), MagicMock())):
                 cmd_search(args)
 
@@ -317,8 +317,8 @@ class TestCmdSearch:
         mock_search = MagicMock()
         mock_search.search_by_tag.return_value = "tagged results"
 
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
-            with patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
+            with patch("zotero_mcp.cli.standalone._import_tools",
                        return_value=(mock_search, MagicMock(), MagicMock(), MagicMock(), MagicMock())):
                 cmd_search(args)
 
@@ -328,8 +328,8 @@ class TestCmdSearch:
 
     def test_search_advanced_invalid_json_exits(self):
         args = self._args(mode="advanced", conditions="not-json")
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
-            with patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
+            with patch("zotero_mcp.cli.standalone._import_tools",
                        return_value=(MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock())):
                 with pytest.raises(SystemExit) as exc:
                     cmd_search(args)
@@ -337,8 +337,8 @@ class TestCmdSearch:
 
     def test_search_semantic_invalid_filters_exits(self):
         args = self._args(mode="semantic", filters="bad-json")
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
-            with patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
+            with patch("zotero_mcp.cli.standalone._import_tools",
                        return_value=(MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock())):
                 with pytest.raises(SystemExit) as exc:
                     cmd_search(args)
@@ -353,8 +353,8 @@ class TestCmdNotes:
     def test_create_empty_text_exits(self, monkeypatch):
         args = MagicMock(subcommand="create", item_key="KEY1", text="",
                          title="Note", tags=None, verbose=False)
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
-            with patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
+            with patch("zotero_mcp.cli.standalone._import_tools",
                        return_value=(MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock())):
                 with pytest.raises(SystemExit) as exc:
                     cmd_notes(args)
@@ -367,8 +367,8 @@ class TestCmdNotes:
         mock_annotations = MagicMock()
         mock_annotations.create_note.return_value = "created"
 
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
-            with patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
+            with patch("zotero_mcp.cli.standalone._import_tools",
                        return_value=(MagicMock(), MagicMock(), mock_annotations, MagicMock(), MagicMock())):
                 cmd_notes(args)
 
@@ -381,8 +381,8 @@ class TestCmdNotes:
         mock_annotations = MagicMock()
         mock_annotations.create_note.return_value = "ok"
 
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
-            with patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
+            with patch("zotero_mcp.cli.standalone._import_tools",
                        return_value=(MagicMock(), MagicMock(), mock_annotations, MagicMock(), MagicMock())):
                 cmd_notes(args)
 
@@ -412,8 +412,8 @@ class TestCmdEdit:
         mock_write = MagicMock()
         mock_write.update_item.return_value = "updated"
 
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
-            with patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
+            with patch("zotero_mcp.cli.standalone._import_tools",
                        return_value=(MagicMock(), MagicMock(), MagicMock(), mock_write, MagicMock())):
                 cmd_edit(args)
 
@@ -422,8 +422,8 @@ class TestCmdEdit:
 
     def test_edit_invalid_creators_json_exits(self):
         args = self._args(creators="not-valid-json")
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
-            with patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
+            with patch("zotero_mcp.cli.standalone._import_tools",
                        return_value=(MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock())):
                 with pytest.raises(SystemExit) as exc:
                     cmd_edit(args)
@@ -435,8 +435,8 @@ class TestCmdEdit:
         mock_write = MagicMock()
         mock_write.update_item.return_value = "ok"
 
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
-            with patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
+            with patch("zotero_mcp.cli.standalone._import_tools",
                        return_value=(MagicMock(), MagicMock(), MagicMock(), mock_write, MagicMock())):
                 cmd_edit(args)
 
@@ -449,8 +449,8 @@ class TestCmdEdit:
         mock_write = MagicMock()
         mock_write.update_item.return_value = "ok"
 
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
-            with patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
+            with patch("zotero_mcp.cli.standalone._import_tools",
                        return_value=(MagicMock(), MagicMock(), MagicMock(), mock_write, MagicMock())):
                 cmd_edit(args)
 
@@ -484,8 +484,8 @@ class TestCmdAdd:
                    "add_by_isbn", "add_by_bibtex", "add_by_csl_json"):
             setattr(mock_write, fn,
                     create_autospec(getattr(write_tools, fn), return_value="ok"))
-        with patch("zotero_mcp.cli_standalone.setup_zotero_environment"):
-            with patch("zotero_mcp.cli_standalone._import_tools",
+        with patch("zotero_mcp.cli.standalone.setup_zotero_environment"):
+            with patch("zotero_mcp.cli.standalone._import_tools",
                        return_value=(MagicMock(), MagicMock(), MagicMock(),
                                      mock_write, MagicMock())):
                 cmd_add(args)

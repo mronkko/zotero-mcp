@@ -20,10 +20,10 @@ import argparse
 import json
 import sys
 
-from zotero_mcp import cli_json as _cli_json
+from zotero_mcp.cli import envelope as _cli_json
 
 # Reuse environment setup from the original CLI module
-from zotero_mcp.cli import (
+from zotero_mcp.cli.manage import (
     _format_chunking_status,
     _print_batch_import,
     _print_batch_status,
@@ -845,7 +845,7 @@ def cmd_db(args):
     """Manage the semantic search database."""
     from pathlib import Path
     setup_zotero_environment()
-    from zotero_mcp.cli import _save_zotero_db_path_to_config
+    from zotero_mcp.cli.manage import _save_zotero_db_path_to_config
     from zotero_mcp.semantic_search import create_semantic_search
 
     config_path_arg = getattr(args, "config_path", None)

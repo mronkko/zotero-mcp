@@ -387,7 +387,7 @@ def backup_configurations() -> Path:
     backup_dir = Path(tempfile.mkdtemp(prefix="zotero_mcp_backup_"))
 
     # Backup Claude Desktop configs (all known build locations, issue #392)
-    from zotero_mcp.setup_helper import claude_config_candidates
+    from zotero_mcp.cli.wizard import claude_config_candidates
 
     for config_path in claude_config_candidates():
         if config_path.exists():
@@ -438,7 +438,7 @@ def restore_configurations(backup_dir: Path) -> bool:
     claude_backup = backup_dir / "claude_desktop_config.json"
     if claude_backup.exists():
         # Find the current Claude config location
-        from zotero_mcp.setup_helper import find_claude_config
+        from zotero_mcp.cli.wizard import find_claude_config
 
         try:
             current_config_path = find_claude_config(verbose=True)

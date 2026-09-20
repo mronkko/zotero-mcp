@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from zotero_mcp import setup_helper
+from zotero_mcp.cli import wizard as setup_helper
 
 CONFIG_NAME = "claude_desktop_config.json"
 
@@ -213,7 +213,7 @@ class TestSetupWritesAllConfigs:
 
 class TestLoadEnvVars:
     def test_env_vars_read_from_the_config_that_has_zotero(self, monkeypatch, tmp_path):
-        from zotero_mcp import cli
+        from zotero_mcp.cli import manage as cli
 
         _roaming, local = _windows_env(monkeypatch, tmp_path)
         monkeypatch.delenv("ZOTERO_NO_CLAUDE", raising=False)

@@ -848,7 +848,7 @@ def test_auto_loop_does_not_submit_into_a_superseded_run(import_env, monkeypatch
 
 
 def test_print_batch_import_reports_submitted_and_deferred(capsys):
-    from zotero_mcp.cli import _print_batch_import
+    from zotero_mcp.cli.manage import _print_batch_import
 
     _print_batch_import({"run_id": "r", "manifest_path": "m", "batches_seen": 3, "batches_imported": 0,
                          "batches_skipped": 3, "batches_submitted": 2,
