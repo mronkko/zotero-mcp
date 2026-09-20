@@ -25,11 +25,7 @@ import pytest
 
 # Old dotted path -> new dotted path. Each move PR appends its own row(s)
 # here as part of moving a module; this map is the single source of truth
-# both guard tests below check against. Empty in PR 0 (scaffolding) because
-# nothing has moved yet: with no rows, the two whole-tree guards below scan
-# nothing at all and pass vacuously. What keeps the scan itself honest until
-# PR 1 adds a row is `test_whole_tree_scan_finds_and_formats_real_hits`,
-# which runs it over the real tree against a synthetic row.
+# both guard tests below check against.
 SHIMS: dict[str, str] = {
     # PR 4 -- the `cli/` move. `zotero_mcp.cli` is a *package-as-shim* row: the
     # flat `cli.py` became `cli/manage.py`, so the old dotted path is now a real
@@ -247,8 +243,8 @@ def test_no_source_module_imports_a_shim_path():
 
 # A row that is not in `SHIMS` and whose old path is still all over the real
 # tree — `zotero_mcp.utils` is PR 9's move, the last one in the series. It
-# stands in for a real row so the whole-tree scan can be exercised while
-# `SHIMS` is empty.
+# stands in for a row with hits in every corner of the tree, which no real
+# row is guaranteed to be once its PR has cleaned up after itself.
 _SYNTHETIC_ROW = {"zotero_mcp.utils": "zotero_mcp.formatting.display"}
 _VIOLATION_RE = re.compile(
     r"^(?P<file>[^:]+\.py):(?P<line>\d+): zotero_mcp\.utils -> use zotero_mcp\.formatting\.display$"
@@ -258,12 +254,13 @@ _VIOLATION_RE = re.compile(
 def test_whole_tree_scan_finds_and_formats_real_hits():
     """The whole-tree scan must actually read the tree and report hits.
 
-    With `SHIMS` empty, `_find_violations` returns immediately and the two
-    guards above read **no files at all** — they pass without touching a
-    single line of the tree, and would go on passing if the file walk, the
-    line scanner or the message format broke. This runs the same scan over
-    the same real files against `_SYNTHETIC_ROW`, so the machinery is
-    proven before PR 1 adds the first real row.
+    The two guards above are assertions that the scan finds *nothing*, so
+    they stay green whether the scan works or not: with an empty `SHIMS`
+    they read no files at all, and once every move PR has cleaned up after
+    itself a broken file walk, line scanner or message format looks exactly
+    like a clean tree. This runs the same scan over the same real files
+    against `_SYNTHETIC_ROW`, which still has hits everywhere, so the
+    machinery is proven by something that must come back non-empty.
 
     The count is deliberately not asserted: it drifts every time a module
     moves. What is asserted is that hits exist in both trees, that every

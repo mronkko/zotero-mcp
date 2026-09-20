@@ -5,10 +5,11 @@ anything — the rules below exist because breaking one of them has cost this pr
 
 ## Status of this document
 
-> **The package tree is still flat.** `src/zotero_mcp/` is a directory of modules with two subpackages
-> (`tools/` and `embeddings/`). The packages described below — `backends/`, `attachments/`,
-> `metadata_sources/`, `semantic_search/`, `cli/`, `formatting/` — **do not exist yet**. They arrive one at a
-> time, and the [shim table](#5-shims) in this document is empty because nothing has moved.
+> **The move is part-way through.** `src/zotero_mcp/` is still mostly a directory of flat modules, with
+> three subpackages: `tools/`, `embeddings/` and, newly moved, `cli/`. The packages described below that
+> are still marked **target** (`backends/`, `attachments/`, `metadata_sources/`, `semantic_search/`,
+> `formatting/`) **do not exist yet**. They arrive one at a time; the [shim table](#5-shims) lists the old
+> import paths that still resolve, one row per module moved so far.
 
 This is a target document, not a description of the current directory listing. Every table that follows
 carries a **Status** column with one of two values:
@@ -29,7 +30,9 @@ src/zotero_mcp/
 ├── extract.py  fulltext_cache.py  pdf_utils.py  pdf_layout.py  epub_utils.py
 ├── pdfannots_helper.py  pdfannots_downloader.py  citation_import.py  html_metadata.py
 ├── semantic_search.py  chroma_client.py  batch_common.py  openai_batch.py  gemini_batch.py
-├── cli.py  cli_standalone.py  cli_json.py  setup_helper.py  updater.py  skill_install.py
+├── cli_standalone.py  cli_json.py  setup_helper.py  updater.py  skill_install.py   # shims only
+├── cli/               # the console commands: manage.py standalone.py envelope.py
+│                      # wizard.py updater.py skill_install.py __main__.py
 ├── embeddings/        # provider adapters
 ├── tools/             # the MCP tool surface, with tools/_helpers.py and tools/write.py
 ├── data/  skills/     # package data, not Python packages
@@ -46,15 +49,15 @@ puts that cost straight back.
 |---|---|---|---|
 | package root (flat) | MCP wiring (`_app`, `_context`, `server`, `toolsets`, `prompts`, `resources`), vocabulary and config (`config`, `config_light`, `schema`, `identifiers`, `search_semantics`), `_shim`, `_version`, and — for now — `utils.py` and every module not yet claimed by a package below | `__init__.py` exports `__version__` eagerly and exposes `mcp` lazily (PEP 562); nothing else. `_version.py` never moves: `[tool.hatch.version]` reads it by path. | now |
 | package root, after `utils.py` is split | `utils.py` is not replaced by a `utils/` package. Its process-level odds and ends stay flat as `distribution.py`, `paths.py`, `_stdio.py` and `search_variants.py`; its formatting functions go to `formatting/` and its backend selection to `backends/`. | Each stays stdlib-only, as `utils.py` largely is today. | target |
-| `backends/` | Systems that hold library data: `library.py` (the `Protocol` and its fallback), `api.py`, `sqlite.py`, `bibtex.py`, `webdav.py`, `scite.py`, plus backend `selection.py` and `pagination.py` | Empty `__init__.py`. No pyzotero, no sqlite connection, no network client at import time. `pagination.py` must stay stdlib-only: `cli_standalone.py` imports it at top level and defers pyzotero. | target |
+| `backends/` | Systems that hold library data: `library.py` (the `Protocol` and its fallback), `api.py`, `sqlite.py`, `bibtex.py`, `webdav.py`, `scite.py`, plus backend `selection.py` and `pagination.py` | Empty `__init__.py`. No pyzotero, no sqlite connection, no network client at import time. `pagination.py` must stay stdlib-only: `cli/standalone.py` imports it at top level and defers pyzotero. | target |
 | `attachments/` | Zotero's word for the files under an item: their text (`extract.py`, `fulltext_cache.py`), PDF and EPUB access (`pdf.py`, `pdf_layout.py`, `epub.py`), annotation import (`pdfannots.py`, `pdfannots_installer.py`), and where to find an open-access copy (`openaccess.py`) | Empty `__init__.py`. PyMuPDF (`fitz`) is an optional dependency and must be imported inside functions, never at module scope in the `__init__`. | target |
 | `metadata_sources/` | Where bibliographic metadata comes from outside Zotero: `crossref.py`, `arxiv.py`, `isbn.py`, `webpage.py`, `citation_import.py`, `html_metadata.py` | Empty `__init__.py`. No `requests` at import time. | target |
-| `semantic_search/` | The feature's own name in the CLI and the config file: `engine.py`, `chroma.py`, `batch/`, `embeddings/`, and the pieces split out of the engine (`lock`, `chunking`, `reranker`, `settings`, `documents`, `sync_state`, `sources/`, `indexer`, `query`, …) | `__init__.py` is a lazy forwarder to `engine`; it imports nothing. This is the strictest rule in the tree: `_app.py` and `cli.py` both decide from config *whether* to use semantic search, and both gates are only meaningful while ChromaDB is still unimported (#485). | target |
-| `cli/` | Console commands: `manage.py`, `standalone.py`, `envelope.py`, `wizard.py`, `updater.py`, `skill_install.py`, `semantic_db.py`, and `__main__.py` | `__init__.py` forwards `main` permanently (it is an entry-point target, not a deprecation shim) and imports nothing else. The `#485` config gates live here. | target |
+| `semantic_search/` | The feature's own name in the CLI and the config file: `engine.py`, `chroma.py`, `batch/`, `embeddings/`, and the pieces split out of the engine (`lock`, `chunking`, `reranker`, `settings`, `documents`, `sync_state`, `sources/`, `indexer`, `query`, …) | `__init__.py` is a lazy forwarder to `engine`; it imports nothing. This is the strictest rule in the tree: `_app.py` and `cli/manage.py` both decide from config *whether* to use semantic search, and both gates are only meaningful while ChromaDB is still unimported (#485). | target |
+| `cli/` | Console commands: `manage.py`, `standalone.py`, `envelope.py`, `wizard.py`, `updater.py`, `skill_install.py`, `__main__.py` — and `semantic_db.py`, still to come | `__init__.py` forwards `main` permanently and silently (it is an entry-point target, not a deprecation shim — see the [shim table](#shim-table)) and imports nothing else. The `#485` config gates live here. | now |
 | `formatting/` | Turning field content into display strings: `names.py`, `markup.py`, `display.py` | Empty `__init__.py`, and the modules themselves stay stdlib-only. | target |
 | `tools/` | The MCP tool surface, one module per tool group. Today that includes the single modules `_helpers.py` and `write.py`; both become packages (`_helpers/`, `write/`) at the same dotted paths. | **The one heavy package, deliberately.** Importing it registers every tool by side effect and pulls in FastMCP, pydantic and pyzotero. Nothing outside `server.py` and the CLI's `_import_tools()` may import it at module scope. | now |
 | `embeddings/` | Embedding-provider adapters. Moves under `semantic_search/` unchanged. | Inherits `semantic_search/`'s rule once it moves. | now |
-| `data/`, `skills/` | Package data — a fields table and the `zotero-cli` skill. Not Python packages, and they stay at the package root because docs, scripts and tests address them there (`schema.py` and `skill_install.py` both resolve them relative to `__file__`). | n/a | now |
+| `data/`, `skills/` | Package data — a fields table and the `zotero-cli` skill. Not Python packages, and they stay at the package root because docs, scripts and tests address them there (`schema.py` resolves `data/` as `__file__`'s sibling; `cli/skill_install.py`, one level deeper, resolves `skills/` through `parents[1]`). | n/a | now |
 
 A reader should be able to guess a package's contents from its name without opening it. `documents`, `text`,
 `semantic` and `ingest` were considered and rejected for failing that test.
@@ -129,7 +132,7 @@ the patch succeeds, the test passes, and nothing was tested. The patch seams tha
 `zotero_mcp.tools._helpers._get_write_client` (~207 occurrences), `zotero_mcp.client.get_zotero_client`
 (~116), `zotero_mcp.tools.write.requests.get`, `zotero_mcp.tools._helpers._try_attach_oa_pdf`,
 `zotero_mcp.utils.is_local_mode`, `zotero_mcp.tools._helpers.find_existing_items`,
-`zotero_mcp.cli_standalone.setup_zotero_environment` and `._import_tools`, and
+`zotero_mcp.cli.standalone.setup_zotero_environment` and `._import_tools`, and
 `zotero_mcp.tools.write._time.sleep`.
 
 ## 4. Test layout
@@ -224,15 +227,17 @@ forwarder; the guards then fail with `file:line: old -> use new` for every inter
 
 **`tests/test_module_layout.py` does not scan itself; every other file under `tests/` is in scope.** The map,
 the unit-test fixtures below it and the docstrings all quote old paths deliberately, and the scanner cannot
-tell those from a stale reference — a `zotero_mcp.client` row matches 7 lines of that file, a `zotero_mcp.cli`
-row 16, so without the exemption no PR could add its own row. The exemption is exactly one file:
+tell those from a stale reference — a `zotero_mcp.client` row matches 8 lines of that file, a `zotero_mcp.cli`
+row 13, so without the exemption no PR could add its own row. The exemption is exactly one file:
 `test_the_guard_file_is_the_only_exempt_test_file` asserts that, and that the file would be flagged if it
 were scanned. Keep a real reference out of it — if you need to demonstrate one, write it in a unit-test
 fixture with a row that is not in `SHIMS`, as the tests there do.
 
-**With `SHIMS` empty the two whole-tree guards read no files at all** and pass vacuously, so until PR 1 adds
-a row the scan itself is proven by `test_whole_tree_scan_finds_and_formats_real_hits`, which runs it over the
-real tree against a synthetic `zotero_mcp.utils` row and checks the hits and their formatting.
+**The two whole-tree guards assert that the scan finds nothing, so they stay green whether it works or
+not** — with an empty `SHIMS` they read no files at all, and once a move PR has cleaned up after itself a
+broken file walk or message format looks exactly like a clean tree. The scan itself is therefore proven by
+`test_whole_tree_scan_finds_and_formats_real_hits`, which runs it over the real tree against a synthetic
+`zotero_mcp.utils` row — a path still referenced everywhere — and checks the hits and their formatting.
 
 **A row whose old path becomes a real package matches by prefix, minus the real submodules.** When a flat
 module becomes a package of the same name — the `cli` case, where `zotero_mcp.cli` -> `zotero_mcp.cli.manage`
@@ -247,6 +252,7 @@ filesystem rather than from the row: any name that exists as `<old-as-dir>/<name
 | `monkeypatch.setattr("zotero_mcp.cli.setup_zotero_environment", ...)` | yes | same, reached as a quoted string |
 | `from zotero_mcp.cli import standalone` | no | `cli/standalone.py` exists — a real sibling, and not the row's `new` |
 | `from zotero_mcp.cli.manage import main` | no | the new path |
+| `subprocess.run([sys.executable, "-m", "zotero_mcp.cli", ...])` | no | `-m` runs `cli/__main__.py`; no attribute is read off the package |
 
 Exempting only the row's own `new` submodule would flag every other real submodule in the package, so the
 probe deliberately exempts all of them. The cost is that a moved *function* whose name happens to collide
@@ -279,7 +285,21 @@ the CHANGELOG.
 
 | Old import path | New import path |
 |---|---|
-| _(none yet — no module has moved)_ | |
+| `zotero_mcp.cli` | `zotero_mcp.cli.manage` |
+| `zotero_mcp.cli_standalone` | `zotero_mcp.cli.standalone` |
+| `zotero_mcp.cli_json` | `zotero_mcp.cli.envelope` |
+| `zotero_mcp.setup_helper` | `zotero_mcp.cli.wizard` |
+| `zotero_mcp.updater` | `zotero_mcp.cli.updater` |
+| `zotero_mcp.skill_install` | `zotero_mcp.cli.skill_install` |
+
+**`zotero_mcp.cli:main` is not on this table's terms.** It is the one name that is forwarded *permanently
+and silently*. A console script records its target at install time, so an installation made before the move
+still has `zotero-mcp = zotero_mcp.cli:main` in its entry-point metadata and resolves `main` through
+`cli/__init__.py` on every invocation. A warning there would print a deprecation notice to a real user's
+terminal each time they run the command, and for a stdio MCP server output on the wrong stream is worse than
+noise. `cli/__init__.py` special-cases `main` ahead of the forwarder; every other attribute of the old
+`cli.py` warns, and `python -m zotero_mcp.cli` keeps working through `cli/__main__.py`, which is real code
+rather than a shim.
 
 Every shim starts warning in the same release and is removed in the same later one. Those two versions are
 `MOVED_IN` and `REMOVED_IN` in `src/zotero_mcp/_shim.py`, and they are written nowhere else: not in this
@@ -412,7 +432,7 @@ PYTHONPATH=src python -c "import sys, zotero_mcp.schema; print(len(sys.modules))
 
 # The CLI's public contract, byte-identical before and after. Run it through
 # `python -m` against this checkout, not via the installed `zotero-cli`:
-PYTHONPATH=src python -m zotero_mcp.cli_standalone --json-schema > /tmp/schema.txt
+PYTHONPATH=src python -m zotero_mcp.cli.standalone --json-schema > /tmp/schema.txt
 echo "exit=$?" && shasum /tmp/schema.txt
 ```
 
