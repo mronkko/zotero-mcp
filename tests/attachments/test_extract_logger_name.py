@@ -66,8 +66,10 @@ def test_the_silencer_literal_resolves_to_the_extractors_own_logger(module):
 
     assert names == [extract.__name__], (
         f"{module} should hard-code exactly one zotero_mcp logger name, the extractor's "
-        f"({extract.__name__}); its source has {names}. If a second silencer is genuinely "
-        "wanted, add it here on purpose rather than letting it appear unnoticed."
+        f"({extract.__name__}); its source has {names}. The count is asserted, not just the "
+        "name: a second literal silencer added to this file would fail here, so raising "
+        "another zotero_mcp logger to CRITICAL has to be a deliberate change to this test "
+        "rather than something that appears unnoticed."
     )
     assert logging.getLogger(names[0]) is extract.logger, (
         f"{module} silences logging.getLogger({names[0]!r}), which is not the logger "
