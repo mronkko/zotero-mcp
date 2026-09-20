@@ -13,6 +13,7 @@ registers in ``sys.modules`` so test order cannot matter.
 
 from __future__ import annotations
 
+import importlib
 import inspect
 import os
 import re
@@ -338,3 +339,164 @@ def test_the_release_scan_flags_a_spelled_out_version(tmp_path):
         f"# not a release of ours: 1{moved}, {moved}.1, {removed}1\n"
     )
     assert [n for _, n, _ in _release_mentions(path)] == [1, 2]
+
+
+# --------------------------------------------------------------------------
+# A package that is its own shim (PR 3's `semantic_search/`, PR 4's `cli/`)
+# --------------------------------------------------------------------------
+
+
+@pytest.fixture
+def package_as_shim(tmp_path, monkeypatch):
+    """A real, importable package shaped exactly like ``semantic_search/``.
+
+    A package whose ``__init__`` forwards every name that is not a submodule
+    to a submodule of its own (``engine``), which is where the real globals
+    live. PR 4 gives ``cli/`` the same shape.
+
+    It is built here rather than reached under its real name because
+    ``tests/test_module_layout.py`` forbids any test file from naming a shim's
+    old dotted path — that static ban is the other half of this same guard —
+    and because a write to the real package would leak into the rest of the
+    suite. Testing the *shape* also means PR 4 inherits the guard for free.
+    """
+    monkeypatch.syspath_prepend(str(tmp_path))
+    pkg_dir = tmp_path / "pkg_as_shim"
+    pkg_dir.mkdir()
+    (pkg_dir / "engine.py").write_text(
+        "def get_client():\n"
+        "    return 'REAL CLIENT'\n"
+        "\n"
+        "\n"
+        "def use_client():\n"
+        "    # Engine code reads its own module global, exactly as\n"
+        "    # ZoteroSemanticSearch.__init__ reads `get_zotero_client`.\n"
+        "    return get_client()\n"
+    )
+    (pkg_dir / "__init__.py").write_text(
+        "from zotero_mcp._shim import forwarder\n"
+        "\n"
+        "_SUBMODULES = frozenset({'engine'})\n"
+        "_forward = forwarder(__name__, 'pkg_as_shim.engine')\n"
+        "\n"
+        "\n"
+        "def __getattr__(name):\n"
+        "    if name in _SUBMODULES:\n"
+        "        raise AttributeError(name)\n"
+        "    return _forward(name)\n"
+    )
+    try:
+        yield importlib.import_module("pkg_as_shim")
+    finally:
+        _purge("pkg_as_shim", "pkg_as_shim.engine")
+
+
+class TestPatchingAPackageAsShimPatchesNothing:
+    """Writing to a package-as-shim looks like it worked and changes nothing.
+
+    ``monkeypatch.setattr(package, "get_zotero_client", fake)`` puts the fake
+    in the *package's* ``__dict__``; every read inside the engine resolves the
+    engine's own global and never sees it. A test written that way passes
+    while exercising the real client, and no static scan can catch it —
+    ``tests/test_module_layout.py`` reads imports and quoted paths, not a
+    runtime ``setattr`` on a module object held in a variable.
+
+    What does catch it is the forwarder's own warning, because
+    ``monkeypatch.setattr`` reads the old value before writing the new one and
+    that read goes through ``__getattr__``. These tests pin that protection
+    and the semantics underneath it, including the one form that slips past —
+    a bare assignment, which never reads and so never warns.
+
+    The only correct target is the module that holds the name: patch
+    ``<package>.engine``, never ``<package>``.
+    """
+
+    @staticmethod
+    def _fake():
+        return "FAKE CLIENT"
+
+    def test_reads_forward_to_the_engine_while_submodules_stay_real(self, package_as_shim):
+        """Baseline for the three tests below: the forwarding works, and it
+        does not swallow the submodule it forwards to."""
+        engine = importlib.import_module("pkg_as_shim.engine")
+
+        with pytest.warns(MovedModuleWarning):
+            assert package_as_shim.get_client is engine.get_client
+
+        assert package_as_shim.engine is engine, "the submodule must not be forwarded"
+
+    @pytest.mark.skipif(
+        not SHIM_PATHS_ARE_ERRORS,
+        reason=f"the shim-path gate is disabled by {SHIM_PATH_GATE_ENV_VAR}=1",
+    )
+    def test_monkeypatching_the_package_fails_under_the_suites_gate(self, package_as_shim, monkeypatch):
+        """The protection: the bad patch must fail the build at the patch line.
+
+        ``monkeypatch.setattr`` does ``getattr(target, name)`` first, to save
+        the value it will restore. On a package-as-shim that read goes through
+        the forwarder, which warns, and `tests/conftest.py` makes
+        `MovedModuleWarning` an error for the whole suite — so the patch never
+        completes. This test exists so that protection cannot go inert
+        unnoticed: it is incidental, a side effect of monkeypatch's read, not
+        something the package does deliberately.
+
+        Deliberately no ``pytest.warns``/``catch_warnings`` here — like
+        `test_the_suites_own_configuration_turns_a_shim_access_into_an_error`,
+        it has to run under the suite's real, ambient filters to mean anything.
+        """
+        with pytest.raises(MovedModuleWarning):
+            monkeypatch.setattr(package_as_shim, "get_client", self._fake)
+
+        engine = importlib.import_module("pkg_as_shim.engine")
+        assert engine.get_client is not self._fake, "the patch must not have landed"
+
+    def test_a_bare_assignment_lands_on_the_package_and_the_engine_never_sees_it(self, package_as_shim):
+        """The residue, pinned: ``package.name = fake`` reads nothing, so it
+        never warns and nothing fails — and it still patches nothing.
+
+        This is the one form the gate above cannot see. It is also why the
+        rule is written as "patch the engine", not "monkeypatch is safe".
+        """
+        engine = importlib.import_module("pkg_as_shim.engine")
+        package_as_shim.get_client = self._fake
+        try:
+            assert package_as_shim.get_client is self._fake, "the write lands on the package"
+
+            assert engine.get_client is not self._fake, "but the engine's own global is untouched"
+            assert engine.use_client() == "REAL CLIENT", (
+                "and every read inside the engine still resolves the real implementation -- "
+                "a test patching the package would exercise the real client and pass"
+            )
+        finally:
+            vars(package_as_shim).pop("get_client", None)
+
+    def test_a_write_to_the_package_permanently_shadows_the_forwarder(self, package_as_shim):
+        """Worse than a no-op: the write also silences the warning.
+
+        Module ``__getattr__`` runs only when normal lookup fails, so once a
+        name is in the package's ``__dict__`` the forwarder stops firing for
+        it — for the rest of the process. That is why the gate above is only
+        a first line of defence: ``monkeypatch``'s *teardown* writes the value
+        it read (the engine's real function) back onto the package, so with
+        the gate off, one such test leaves the name permanently shadowed and a
+        later one is no longer caught.
+        """
+
+        def moved_warnings():
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                package_as_shim.get_client
+            return [w for w in caught if issubclass(w.category, MovedModuleWarning)]
+
+        assert len(moved_warnings()) == 1, "a forwarded read warns"
+
+        package_as_shim.get_client = self._fake
+        try:
+            assert moved_warnings() == [], (
+                "once the name is in the package __dict__ the forwarder is never consulted again, "
+                "so the access is silent"
+            )
+        finally:
+            vars(package_as_shim).pop("get_client", None)
+
+        assert len(moved_warnings()) == 1, "removing the shadow restores the forwarder"
