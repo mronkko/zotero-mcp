@@ -202,7 +202,7 @@ necessarily the same backend.
 Run the test suite:
 ```bash
 .venv/bin/python -c "
-from zotero_mcp.pdf_utils import (
+from zotero_mcp.attachments.pdf import (
     normalize_text, normalize_for_matching,
     find_text_position, _extract_anchor
 )

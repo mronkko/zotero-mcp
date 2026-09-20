@@ -133,7 +133,7 @@ class TestGetPdfOutlinePagination:
 
 class TestGetAnnotationsPdfFallbackPagination:
     def test_pdf_extraction_scans_attachments_past_first_api_page(self, monkeypatch, dummy_ctx):
-        import zotero_mcp.pdfannots_helper as ph
+        import zotero_mcp.attachments.pdfannots as ph
 
         monkeypatch.delenv("ZOTERO_LOCAL", raising=False)
         monkeypatch.setattr(ph, "ensure_pdfannots_installed", lambda: True)

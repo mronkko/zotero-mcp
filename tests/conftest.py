@@ -453,13 +453,13 @@ def fake_local_zot():
 
 
 def extracted_doc(text, *, page_count=1, source="pdf", truncated=False):
-    """Build an :class:`~zotero_mcp.extract.ExtractedDoc` for stubbing the
+    """Build an :class:`~zotero_mcp.attachments.extract.ExtractedDoc` for stubbing the
     parser seam (``LocalZoteroReader._extract_doc_from_file``).
 
     Tests that stub extraction are usually about attachment *selection*, so
     they only care about the text; the page fields carry harmless defaults.
     """
-    from zotero_mcp.extract import ExtractedDoc
+    from zotero_mcp.attachments.extract import ExtractedDoc
 
     return ExtractedDoc(
         text=text,

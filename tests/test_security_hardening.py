@@ -88,7 +88,7 @@ def test_local_write_config_creates_a_private_directory(tmp_path, monkeypatch):
 
 def test_pdfannots_timeout_returns_empty(monkeypatch):
     """A pdfannots2json timeout is handled gracefully (returns [])."""
-    import zotero_mcp.pdfannots_helper as ph
+    import zotero_mcp.attachments.pdfannots as ph
 
     monkeypatch.setattr(ph, "ensure_pdfannots_installed", lambda: True)
     monkeypatch.setattr(ph, "get_pdfannots_executable", lambda: "/bin/true")

@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from zotero_mcp import fulltext_cache
+from zotero_mcp.attachments import fulltext_cache
 
 
 @pytest.fixture

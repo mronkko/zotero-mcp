@@ -361,7 +361,7 @@ def prose_pdf(tmp_path):
 
 class TestHighlightClipping:
     def test_mid_line_match_covers_only_the_matched_words(self, prose_pdf):
-        from zotero_mcp.pdf_utils import find_text_position, text_in_rects
+        from zotero_mcp.attachments.pdf import find_text_position, text_in_rects
 
         wanted = "sequential nature precludes"
         result = find_text_position(prose_pdf, 1, wanted)
@@ -371,7 +371,7 @@ class TestHighlightClipping:
     def test_long_match_across_lines_starts_and_ends_on_the_matched_words(self, prose_pdf):
         """Over 100 characters takes the anchor path, which used to box every
         span it touched -- here, all of lines 1 and 3."""
-        from zotero_mcp.pdf_utils import find_text_position, text_in_rects
+        from zotero_mcp.attachments.pdf import find_text_position, text_in_rects
 
         wanted = ("positions of input. This inherently sequential nature precludes "
                   "parallelization within training examples. Memory constraints")
@@ -381,7 +381,7 @@ class TestHighlightClipping:
         assert text_in_rects(prose_pdf, 0, result["rects"]) == wanted
 
     def test_fuzzy_match_is_clipped_too(self, prose_pdf):
-        from zotero_mcp.pdf_utils import find_text_position, text_in_rects
+        from zotero_mcp.attachments.pdf import find_text_position, text_in_rects
 
         # One character off, so exact search fails and fuzzy matching runs.
         result = find_text_position(prose_pdf, 1, "inherently sequentail nature")
@@ -499,7 +499,7 @@ class TestCreateAnnotations:
 
 def test_rule_only_table_is_detected_with_its_caption(tmp_path):
     """Booktabs tables have no vertical lines, so find_tables finds nothing."""
-    from zotero_mcp.pdf_layout import detect_page_regions
+    from zotero_mcp.attachments.pdf_layout import detect_page_regions
 
     doc = fitz.open()
     page = doc.new_page(width=612, height=792)
@@ -524,7 +524,7 @@ def test_rule_only_table_is_detected_with_its_caption(tmp_path):
 
 
 def test_ruled_table_boxes_ignores_partial_and_sparse_rules():
-    from zotero_mcp.pdf_layout import _ruled_table_boxes
+    from zotero_mcp.attachments.pdf_layout import _ruled_table_boxes
 
     def rule(x0, x1, y):
         return {"rect": fitz.Rect(x0, y, x1, y)}
@@ -541,7 +541,7 @@ def test_ruled_table_boxes_ignores_partial_and_sparse_rules():
 
 
 def test_side_by_side_panels_join_the_captioned_figure():
-    from zotero_mcp.pdf_layout import _absorb_uncaptioned_panels
+    from zotero_mcp.attachments.pdf_layout import _absorb_uncaptioned_panels
 
     caption = {"label": "Figure 2", "kind": "figure", "text": "Figure 2: (left) ... (right) ...",
                "bbox": [0.176, 0.346, 0.648, 0.027]}
@@ -563,7 +563,7 @@ def test_side_by_side_panels_join_the_captioned_figure():
 
 
 def test_table_captions_do_not_absorb_panels():
-    from zotero_mcp.pdf_layout import _absorb_uncaptioned_panels
+    from zotero_mcp.attachments.pdf_layout import _absorb_uncaptioned_panels
 
     caption = {"label": "Table 2", "kind": "table", "text": "Table 2", "bbox": [0.1, 0.5, 0.8, 0.02]}
     table = {"source": "table", "bbox": [0.1, 0.3, 0.4, 0.15], "caption_label": "Table 2"}
@@ -599,7 +599,7 @@ def _block(*lines):
 
 class TestScanMath:
     def test_pages_without_math_fonts_are_skipped_before_extracting_text(self):
-        from zotero_mcp.pdf_layout import scan_math
+        from zotero_mcp.attachments.pdf_layout import scan_math
 
         page = _FakeMathPage(["NimbusRomNo9L-Regu"], [])
         assert scan_math(page) == ([], 0)
@@ -608,7 +608,7 @@ class TestScanMath:
     def test_split_display_joins_into_one_numbered_equation(self):
         """AIAYN's Eq. (1): the fraction's denominator is its own block, and
         the equation number sits in a third."""
-        from zotero_mcp.pdf_layout import scan_math
+        from zotero_mcp.attachments.pdf_layout import scan_math
 
         page = _FakeMathPage(["ABCDEF+CMMI10", "CMR10", "CMSY10", "NimbusRomNo9L-Regu"], [
             _block(((72, 100, 540, 112), [("We compute the matrix of outputs as ", "NimbusRomNo9L-Regu"),
@@ -626,7 +626,7 @@ class TestScanMath:
         assert inline == 3  # "Q" and ", K" in the prose block
 
     def test_displays_in_different_columns_stay_apart(self):
-        from zotero_mcp.pdf_layout import scan_math
+        from zotero_mcp.attachments.pdf_layout import scan_math
 
         page = _FakeMathPage(["CMMI10"], [
             _block(((60, 300, 280, 312), [("x = y + z", "CMMI10")])),
@@ -638,7 +638,7 @@ class TestScanMath:
     def test_numbers_go_to_the_display_in_their_own_column(self):
         """Two columns can put displays on one band; the right column's
         equation was labelled with the left column's number."""
-        from zotero_mcp.pdf_layout import scan_math
+        from zotero_mcp.attachments.pdf_layout import scan_math
 
         page = _FakeMathPage(["CMMI10"], [
             _block(((60, 500, 250, 512), [("p = x Q", "CMMI10")]),
@@ -652,7 +652,7 @@ class TestScanMath:
         ]
 
     def test_math_heavy_prose_is_not_a_display(self):
-        from zotero_mcp.pdf_layout import scan_math
+        from zotero_mcp.attachments.pdf_layout import scan_math
 
         page = _FakeMathPage(["CMMI10", "Times"], [
             _block(((72, 100, 540, 112), [("where ", "Times"), ("d", "CMMI10"),
@@ -664,7 +664,7 @@ class TestScanMath:
 def test_fragments_nested_in_a_table_are_dropped():
     """EGNN's Table 1 has a rule under every row; each band detected as a
     table of its own inside the real one."""
-    from zotero_mcp.pdf_layout import _merge_candidate_regions
+    from zotero_mcp.attachments.pdf_layout import _merge_candidate_regions
 
     regions = _merge_candidate_regions([
         {"source": "table", "bbox": [0.108, 0.104, 0.76, 0.025]},
@@ -702,7 +702,7 @@ class TestReadFlags:
         return argparse.Namespace(page_numbers=tuple(range(len(pages))), pages=pages, needs_ocr=())
 
     def test_flags_name_equations_captions_and_inline_math(self, two_page_pdf, monkeypatch):
-        from zotero_mcp import pdf_layout
+        from zotero_mcp.attachments import pdf_layout
         from zotero_mcp.tools import read_pdf
 
         scans = iter([
@@ -729,7 +729,7 @@ class TestReadFlags:
         ("cli", "zotero-cli read KEY00001 --start-page N --format image"),
     ])
     def test_advice_matches_the_surface(self, two_page_pdf, monkeypatch, surface, advice):
-        from zotero_mcp import pdf_layout
+        from zotero_mcp.attachments import pdf_layout
         from zotero_mcp.tools import read_pdf
 
         monkeypatch.setattr(pdf_layout, "scan_math",

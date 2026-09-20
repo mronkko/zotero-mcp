@@ -354,7 +354,7 @@ def _pdf_inspector():
     try:
         import pdf_inspector
     except ImportError as exc:  # pragma: no cover - depends on install state
-        from .utils import install_hint
+        from zotero_mcp.utils import install_hint
 
         raise ImportError(
             f"pdf-inspector is required for PDF text extraction. {install_hint()}"

@@ -23,16 +23,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from . import fulltext_cache
-from . import search_semantics as _semantics
-from .config import load_config
-from .extract import (
+from zotero_mcp.attachments import fulltext_cache
+from zotero_mcp.attachments.extract import (
     ExtractedDoc,
     categorize_attachment,
     extract_file,
     normalize_attachment_priority,
     pick_by_priority,
 )
+
+from . import search_semantics as _semantics
+from .config import load_config
 from .utils import _generate_search_variants, _normalize_for_search, is_local_mode
 
 logger = logging.getLogger(__name__)
@@ -79,7 +80,7 @@ class FulltextExtraction:
 
     ``page_count`` is the document's real length and ``truncated`` says the
     page cap dropped pages from the tail — both straight from
-    :class:`~zotero_mcp.extract.ExtractedDoc`. They carry their defaults on
+    :class:`~zotero_mcp.attachments.extract.ExtractedDoc`. They carry their defaults on
     the cache paths, which are not page-capped and keep no page bookkeeping
     (#448).
     """
@@ -234,14 +235,14 @@ def _source_for_path(path: Path) -> str:
 def _init_extraction_worker() -> None:
     """Silence extraction warnings inside a pool worker.
 
-    ``semantic_search`` raises the ``zotero_mcp.extract`` logger to CRITICAL
+    ``semantic_search`` raises the ``zotero_mcp.attachments.extract`` logger to CRITICAL
     for the duration of an indexing run, because a warning printed mid-scan
     corrupts the progress line. That setting lives in the parent interpreter
     and means nothing to a worker process, so without this initializer
     parallel extraction would print warnings that sequential extraction hides
     — and roughly 0.4% of real-world PDFs fail to parse, so it is not rare.
     """
-    logging.getLogger("zotero_mcp.extract").setLevel(logging.CRITICAL)
+    logging.getLogger("zotero_mcp.attachments.extract").setLevel(logging.CRITICAL)
     logging.getLogger("pdfminer").setLevel(logging.ERROR)
 
 

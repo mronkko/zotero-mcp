@@ -13,8 +13,8 @@ from zotero_mcp import client as _client
 from zotero_mcp import library as _library
 from zotero_mcp import utils as _utils
 from zotero_mcp._app import mcp
+from zotero_mcp.attachments.extract import extract_pdf, pdf_page_count
 from zotero_mcp.config import load_config
-from zotero_mcp.extract import extract_pdf, pdf_page_count
 from zotero_mcp.tools import _helpers
 
 _TMPDIR_PREFIX = "zotero_pdf_"
@@ -382,7 +382,7 @@ def _garbled_content_flags(pdf_path: str, doc) -> dict[int, str]:
     try:
         import fitz
 
-        from zotero_mcp.pdf_layout import _parse_caption_block, scan_math
+        from zotero_mcp.attachments.pdf_layout import _parse_caption_block, scan_math
 
         pdf = fitz.open(pdf_path)
     except Exception:

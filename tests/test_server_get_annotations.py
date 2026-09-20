@@ -465,7 +465,7 @@ def test_get_annotations_better_bibtex_path_carries_tags(monkeypatch):
 
 def test_get_annotations_pdf_extraction_path_carries_tags(monkeypatch):
     """Directly-extracted PDF annotations keep their tags (#377)."""
-    import zotero_mcp.pdfannots_helper as pdfhelper
+    import zotero_mcp.attachments.pdfannots as pdfhelper
 
     class _DumpingZotero(FakeZoteroForAnnotations):
         def dump(self, key, filename=None, path=None):

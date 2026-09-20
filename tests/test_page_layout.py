@@ -11,7 +11,7 @@ import pytest
 from conftest import DummyContext
 
 from zotero_mcp import server
-from zotero_mcp.pdf_layout import (
+from zotero_mcp.attachments.pdf_layout import (
     _associate_captions_with_regions,
     _bbox_iou,
     _merge_candidate_regions,
@@ -604,7 +604,7 @@ class TestGetPageLayoutTool:
 
     def _patch_detection(self, monkeypatch, result):
         monkeypatch.setattr(
-            "zotero_mcp.pdf_layout.detect_page_regions",
+            "zotero_mcp.attachments.pdf_layout.detect_page_regions",
             lambda _path, _page: result,
         )
 

@@ -453,7 +453,7 @@ def test_import_openai_batch_evicts_cached_fulltext(tmp_path, monkeypatch):
     ``<key>#<n>`` and have to collapse back to ``<key>`` to match the cache,
     which is keyed by item.
     """
-    from zotero_mcp import fulltext_cache
+    from zotero_mcp.attachments import fulltext_cache
 
     class ImportChromaClient(FakeChromaClient):
         def upsert_embeddings(self, documents, metadatas, ids, embeddings):

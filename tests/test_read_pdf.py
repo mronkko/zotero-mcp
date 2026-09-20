@@ -6,7 +6,7 @@ import pytest
 from conftest import DummyContext, FakeZotero
 
 from zotero_mcp import server
-from zotero_mcp.extract import PAGE_SEPARATOR, ExtractedDoc
+from zotero_mcp.attachments.extract import PAGE_SEPARATOR, ExtractedDoc
 from zotero_mcp.tools import read_pdf as read_pdf_tools
 from zotero_mcp.tools.read_pdf import PdfReadError
 

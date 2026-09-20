@@ -14,7 +14,7 @@ from pathlib import Path
 
 from conftest import extracted_doc
 
-from zotero_mcp.extract import DEFAULT_ATTACHMENT_PRIORITY, is_extractable
+from zotero_mcp.attachments.extract import DEFAULT_ATTACHMENT_PRIORITY, is_extractable
 from zotero_mcp.local_db import LocalZoteroReader
 
 

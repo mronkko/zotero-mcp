@@ -3,7 +3,7 @@ import os
 import tempfile
 import zipfile
 
-from zotero_mcp import pdfannots_downloader
+from zotero_mcp.attachments import pdfannots_installer as pdfannots_downloader
 
 
 def test_verify_archive_checksum(monkeypatch):

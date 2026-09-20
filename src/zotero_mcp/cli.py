@@ -1040,7 +1040,7 @@ def main():
             _save_zotero_db_path_to_config(config_path, db_path)
 
         if getattr(args, "clear_fulltext_cache", False):
-            from zotero_mcp import fulltext_cache
+            from zotero_mcp.attachments import fulltext_cache
 
             removed = fulltext_cache.clear_all(config_path=str(config_path))
             print(f"Cleared transient fulltext cache ({removed} entries)")
@@ -1103,7 +1103,7 @@ def main():
             # crash between writing the text and saving the index. Never fatal:
             # the update itself has already succeeded by this point.
             try:
-                from zotero_mcp import fulltext_cache
+                from zotero_mcp.attachments import fulltext_cache
 
                 purged = fulltext_cache.purge_stale(config_path=str(config_path))
                 if purged:

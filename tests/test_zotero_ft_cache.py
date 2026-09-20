@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 from conftest import extracted_doc, skip_on_ci
-from zotero_mcp.extract import DEFAULT_ATTACHMENT_PRIORITY
+from zotero_mcp.attachments.extract import DEFAULT_ATTACHMENT_PRIORITY
 from zotero_mcp.local_db import LocalZoteroReader
 
 

@@ -58,8 +58,8 @@ def ensure_pdfannots_installed() -> bool:
 
     # If not installed, use the downloader script to install it
     try:
-        from zotero_mcp import pdfannots_downloader
-        success = pdfannots_downloader.download_and_install()
+        from zotero_mcp.attachments import pdfannots_installer
+        success = pdfannots_installer.download_and_install()
         return success
     except Exception as e:
         logger.error(f"Error installing pdfannots2json: {e}")

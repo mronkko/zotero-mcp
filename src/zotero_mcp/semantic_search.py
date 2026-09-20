@@ -29,7 +29,10 @@ except Exception:
     _tokenizer = None
 
 
-from . import batch_common, fulltext_cache, gemini_batch, openai_batch
+from zotero_mcp.attachments import fulltext_cache
+from zotero_mcp.attachments.extract import PAGE_SEPARATOR
+
+from . import batch_common, gemini_batch, openai_batch
 from .chroma_client import ChromaClient, create_chroma_client
 from .client import get_active_group_id, get_zotero_client
 
@@ -44,7 +47,6 @@ from .config_light import (  # noqa: F401
     should_update,
 )
 from .embeddings.registry import batch_capable_providers
-from .extract import PAGE_SEPARATOR
 from .local_db import PERSONAL_LIBRARY_GROUP_ID, LocalZoteroReader
 from .utils import _paginate, ensure_private_dir, format_creators, is_local_mode, suppress_stdout
 
@@ -1602,7 +1604,7 @@ class ZoteroSemanticSearch:
                     # Temporarily suppress the extractor's logger: a warning
                     # about one unreadable attachment would otherwise land in
                     # the middle of the \r progress line.
-                    _extract_logger = logging.getLogger("zotero_mcp.extract")
+                    _extract_logger = logging.getLogger("zotero_mcp.attachments.extract")
                     _prev_level = _extract_logger.level
                     _extract_logger.setLevel(logging.CRITICAL)
 

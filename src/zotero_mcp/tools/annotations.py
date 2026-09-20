@@ -482,7 +482,7 @@ def get_annotations(
             # PDF Extraction fallback
             if use_pdf_extraction and not (better_bibtex_annotations or zotero_api_annotations):
                 try:
-                    from zotero_mcp.pdfannots_helper import extract_annotations_from_pdf, ensure_pdfannots_installed
+                    from zotero_mcp.attachments.pdfannots import extract_annotations_from_pdf, ensure_pdfannots_installed
 
                     # Ensure PDF annotation tool is installed
                     if ensure_pdfannots_installed():
@@ -1694,7 +1694,7 @@ def create_annotations(
                 except Exception:
                     source, valid = None, False
             else:
-                from zotero_mcp.epub_utils import verify_epub_attachment
+                from zotero_mcp.attachments.epub import verify_epub_attachment
 
                 source, valid = file_path, verify_epub_attachment(file_path)
             if not valid:
@@ -1767,7 +1767,7 @@ def _annotation_payload(
         placed, and ``details`` then carries ``error``. ``page_labels`` caches
         labels across the specs of one file.
     """
-    from zotero_mcp.pdf_utils import (
+    from zotero_mcp.attachments.pdf import (
         build_annotation_position,
         build_area_position_data,
         find_text_position,
@@ -1833,7 +1833,7 @@ def _annotation_payload(
         return None, {"error": "Error: nothing to annotate. Pass text (highlight) or rect (area box)."}
 
     if file_type == "epub":
-        from zotero_mcp.epub_utils import find_text_in_epub
+        from zotero_mcp.attachments.epub import find_text_in_epub
 
         position = find_text_in_epub(source, page, text)
         if "error" in position:
@@ -2036,8 +2036,8 @@ def detect_layouts(
     """
     from contextlib import ExitStack
 
-    from zotero_mcp import pdf_layout
-    from zotero_mcp.pdf_utils import open_pdf
+    from zotero_mcp.attachments import pdf_layout
+    from zotero_mcp.attachments.pdf import open_pdf
 
     layouts = []
     with tempfile.TemporaryDirectory() as tmpdir:

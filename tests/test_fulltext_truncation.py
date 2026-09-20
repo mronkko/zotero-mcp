@@ -17,7 +17,7 @@ from conftest import DummyContext, FakeZotero
 import zotero_mcp.client as zotero_client
 import zotero_mcp.local_db as local_db
 import zotero_mcp.utils as zotero_utils
-from zotero_mcp.extract import ExtractedDoc
+from zotero_mcp.attachments.extract import ExtractedDoc
 from zotero_mcp.local_db import FulltextExtraction, LocalZoteroReader
 from zotero_mcp.tools import retrieval
 

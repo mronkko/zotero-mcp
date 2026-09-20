@@ -24,7 +24,7 @@ from __future__ import annotations
 import os
 import re
 
-from zotero_mcp.pdf_utils import page_label, page_range_error
+from zotero_mcp.attachments.pdf import page_label, page_range_error
 from zotero_mcp.utils import install_hint
 
 # Region filtering / merging thresholds (normalized page units)

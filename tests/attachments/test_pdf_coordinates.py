@@ -12,7 +12,7 @@ import tempfile
 
 import pytest
 
-from zotero_mcp.pdf_utils import build_area_position_data, find_text_position
+from zotero_mcp.attachments.pdf import build_area_position_data, find_text_position
 
 SENTENCE = "judgmental anchoring has durable effects lasting up to one week"
 

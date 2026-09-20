@@ -24,7 +24,7 @@ from fastmcp import Client, FastMCP
 from mcp.types import CallToolResult
 
 from zotero_mcp import cli_standalone
-from zotero_mcp.extract import PAGE_SEPARATOR, ExtractedDoc
+from zotero_mcp.attachments.extract import PAGE_SEPARATOR, ExtractedDoc
 from zotero_mcp.tools import read_pdf as read_pdf_tools
 
 ITEM_KEY = "TESTKEY1"

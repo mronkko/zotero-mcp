@@ -1,4 +1,4 @@
-"""Tests for the extraction seam (``zotero_mcp.extract``).
+"""Tests for the extraction seam (``zotero_mcp.attachments.extract``).
 
 Everything that turns an attachment into text goes through this module, so
 the invariants downstream code relies on are pinned here: the page separator
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from zotero_mcp.extract import (
+from zotero_mcp.attachments.extract import (
     PAGE_SEPARATOR,
     ExtractedDoc,
     extract_file,
@@ -197,7 +197,7 @@ class TestExtractFile:
     def test_logs_when_extraction_fails(self, tmp_path, caplog):
         broken = tmp_path / "broken.pdf"
         broken.write_bytes(b"")
-        with caplog.at_level("WARNING", logger="zotero_mcp.extract"):
+        with caplog.at_level("WARNING", logger="zotero_mcp.attachments.extract"):
             assert extract_file(broken) is None
         assert "broken.pdf" in caplog.text
 

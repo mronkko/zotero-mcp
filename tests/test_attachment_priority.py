@@ -13,7 +13,7 @@ import pytest
 from conftest import FakeZotero, extracted_doc
 
 from zotero_mcp import client as client_module
-from zotero_mcp.extract import (
+from zotero_mcp.attachments.extract import (
     ATTACHMENT_CATEGORIES,
     DEFAULT_ATTACHMENT_PRIORITY,
     categorize_attachment,
@@ -81,12 +81,12 @@ class TestNormalizeAttachmentPriority:
         assert normalize_attachment_priority(["pdf", "pdf", "html"]) == ("pdf", "html")
 
     def test_unknown_entries_are_dropped_not_fatal(self, caplog):
-        with caplog.at_level("WARNING", logger="zotero_mcp.extract"):
+        with caplog.at_level("WARNING", logger="zotero_mcp.attachments.extract"):
             assert normalize_attachment_priority(["pdf", "xml-ish", "html"]) == ("pdf", "html")
         assert "xml-ish" in caplog.text
 
     def test_all_unknown_falls_back_to_the_default(self, caplog):
-        with caplog.at_level("WARNING", logger="zotero_mcp.extract"):
+        with caplog.at_level("WARNING", logger="zotero_mcp.attachments.extract"):
             assert normalize_attachment_priority(["nonsense"]) == DEFAULT_ATTACHMENT_PRIORITY
 
     def test_a_bare_string_is_accepted(self):

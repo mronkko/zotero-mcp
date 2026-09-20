@@ -24,7 +24,7 @@ from conftest import DummyContext, FakeZotero
 
 from zotero_mcp import client as client_module
 from zotero_mcp import server
-from zotero_mcp.extract import ExtractedDoc
+from zotero_mcp.attachments.extract import ExtractedDoc
 from zotero_mcp.local_db import LocalZoteroReader
 from zotero_mcp.tools import read_pdf as read_pdf_tools
 from zotero_mcp.tools import write as write_tools

@@ -11,7 +11,8 @@ on the zotero_get_annotations path.
 
 from unittest.mock import patch
 
-from zotero_mcp import pdfannots_downloader, pdfannots_helper
+from zotero_mcp.attachments import pdfannots as pdfannots_helper
+from zotero_mcp.attachments import pdfannots_installer as pdfannots_downloader
 from zotero_mcp.better_bibtex_client import ZoteroBetterBibTexAPI
 
 

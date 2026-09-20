@@ -14,7 +14,8 @@ from concurrent.futures.process import BrokenProcessPool
 
 import pytest
 
-from zotero_mcp import fulltext_cache, local_db
+from zotero_mcp import local_db
+from zotero_mcp.attachments import fulltext_cache
 from zotero_mcp.local_db import (
     LocalZoteroReader,
     _extract_worker,
@@ -80,7 +81,7 @@ def test_worker_initializer_silences_extraction_warnings():
     Without this, parallel runs print extraction warnings that the sequential
     path hides — and roughly 0.4% of real-world PDFs fail to parse.
     """
-    log = logging.getLogger("zotero_mcp.extract")
+    log = logging.getLogger("zotero_mcp.attachments.extract")
     previous = log.level
     try:
         log.setLevel(logging.DEBUG)

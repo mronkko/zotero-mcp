@@ -15,9 +15,9 @@ from zotero_mcp import library as _library
 from zotero_mcp import utils as _utils
 from zotero_mcp._app import mcp
 from zotero_mcp._context import Context
+from zotero_mcp.attachments.extract import extract_file
 from zotero_mcp.client import with_zotero_api_lock
 from zotero_mcp.config import load_config
-from zotero_mcp.extract import extract_file
 from zotero_mcp.tools import _helpers
 
 #: Pages of a PDF to surface when an agent reads a paper inline, if nothing

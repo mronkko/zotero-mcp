@@ -17,7 +17,7 @@ if sys.version_info >= (3, 14):
     )
 
 from zotero_mcp import semantic_search
-from zotero_mcp.extract import DEFAULT_ATTACHMENT_PRIORITY
+from zotero_mcp.attachments.extract import DEFAULT_ATTACHMENT_PRIORITY
 
 DATE_MODIFIED = "2026-07-02 01:01:48"
 

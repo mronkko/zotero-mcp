@@ -32,7 +32,7 @@ class ExtractionConfig:
     fulltext_display_max_pages: int | None = None
     # Order in which attachment kinds are considered when an item has more
     # than one readable file. None means the default (PDF > HTML > rest);
-    # see zotero_mcp.extract.normalize_attachment_priority (#378).
+    # see zotero_mcp.attachments.extract.normalize_attachment_priority (#378).
     attachment_priority: list[str] | None = None
 
 

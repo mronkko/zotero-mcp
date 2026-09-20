@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 from pyzotero import zotero
 
 from zotero_mcp import schema
-from zotero_mcp.extract import (
+from zotero_mcp.attachments.extract import (
     categorize_attachment,
     extract_file,
     normalize_attachment_priority,
