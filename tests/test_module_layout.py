@@ -30,7 +30,17 @@ import pytest
 # nothing at all and pass vacuously. What keeps the scan itself honest until
 # PR 1 adds a row is `test_whole_tree_scan_finds_and_formats_real_hits`,
 # which runs it over the real tree against a synthetic row.
-SHIMS: dict[str, str] = {}
+SHIMS: dict[str, str] = {
+    # PR 4 -- the `cli/` move. `zotero_mcp.cli` is a *package-as-shim* row: the
+    # flat `cli.py` became `cli/manage.py`, so the old dotted path is now a real
+    # package with real submodules under it (see `_shim_match`).
+    "zotero_mcp.cli": "zotero_mcp.cli.manage",
+    "zotero_mcp.cli_standalone": "zotero_mcp.cli.standalone",
+    "zotero_mcp.cli_json": "zotero_mcp.cli.envelope",
+    "zotero_mcp.setup_helper": "zotero_mcp.cli.wizard",
+    "zotero_mcp.updater": "zotero_mcp.cli.updater",
+    "zotero_mcp.skill_install": "zotero_mcp.cli.skill_install",
+}
 
 # This file lives at the top level of tests/ (never inside a subpackage —
 # see the module docstring in tests/conftest.py for why tests/ has no
@@ -43,6 +53,9 @@ _SRC_ROOT = _REPO_ROOT / "src"
 _QUOTED_PATH_RE = re.compile(r"""(['"])(zotero_mcp(?:\.[A-Za-z_][A-Za-z0-9_]*)+)\1""")
 _FROM_IMPORT_RE = re.compile(r"^\s*from\s+([A-Za-z_][\w.]*)\s+import\s+(.+)$")
 _IMPORT_RE = re.compile(r"^\s*import\s+(.+)$")
+# A `python -m <path>` target, either as two argv items (`"-m", "zotero_mcp.cli"`)
+# or written out in one string (`-m zotero_mcp.cli`). See `_candidates_from_line`.
+_DASH_M_TARGET_RE = re.compile(r"""(?:["']-m["']\s*,\s*["']|-m\s+)(zotero_mcp(?:\.[A-Za-z_][A-Za-z0-9_]*)*)""")
 
 
 def _shim_match(path: str, old: str, src_root: Path | None = None) -> bool:
@@ -93,11 +106,29 @@ def _candidates_from_line(line: str) -> list[str]:
     the deprecated ``import zotero_mcp.cli`` itself. A wildcard import
     (``from X import *``) can't be resolved that way, so it falls back to
     the bare module path.
+
+    A `python -m X` target is recorded as ``X.__main__``, not as bare ``X``,
+    because that is what the invocation actually reaches: `runpy` imports the
+    package and then runs its ``__main__`` submodule, never reading an
+    attribute off the package — so a package whose ``__main__.py`` is real
+    code (``cli/__main__.py``, spawned by ``cli/updater.py`` to read back the
+    version it just installed) is not touching the shim at all, while a `-m`
+    target that has no ``__main__.py`` on disk still gets flagged by
+    `_shim_match`'s submodule probe.
     """
     candidates: list[str] = []
 
-    for _quote, path in _QUOTED_PATH_RE.findall(line):
-        candidates.append(path)
+    dash_m_spans: list[tuple[int, int]] = []
+    for match in _DASH_M_TARGET_RE.finditer(line):
+        dash_m_spans.append(match.span(1))
+        candidates.append(f"{match.group(1)}.__main__")
+
+    for match in _QUOTED_PATH_RE.finditer(line):
+        # Skipped by position, not by value: the same dotted path may appear
+        # twice on one line, once as a `-m` target and once as a patch string.
+        if match.span(2) in dash_m_spans:
+            continue
+        candidates.append(match.group(2))
 
     from_match = _FROM_IMPORT_RE.match(line)
     if from_match:
@@ -338,10 +369,11 @@ def cli_src_root(tmp_path):
     """A fake `src/` tree shaped like PR 4 leaves `zotero_mcp.cli`: a real
     package whose `__init__.py` shims the old flat-module attributes, next
     to real sibling submodules (`standalone`, `envelope`) that are not the
-    shim's `new` value but must never be flagged either."""
+    shim's `new` value but must never be flagged either, and the real
+    `__main__.py` that keeps `python -m zotero_mcp.cli` working."""
     cli_dir = tmp_path / "src" / "zotero_mcp" / "cli"
     cli_dir.mkdir(parents=True)
-    for name in ("__init__", "manage", "standalone", "envelope"):
+    for name in ("__init__", "__main__", "manage", "standalone", "envelope"):
         (cli_dir / f"{name}.py").write_text("")
     return tmp_path / "src"
 
@@ -400,6 +432,49 @@ class TestShimMatchPackageAsShim:
             ("zotero_mcp.cli", "zotero_mcp.cli.manage")
         ]
         assert _violations_in_line("from zotero_mcp.cli import some_function", self.SHIMS, cli_src_root) == [
+            ("zotero_mcp.cli", "zotero_mcp.cli.manage")
+        ]
+
+
+class TestDashMSubprocessTargets:
+    """`python -m <pkg>` imports the package and runs its `__main__`
+    submodule; it never reads an attribute off the package, so the
+    forwarder is never consulted and the invocation is not deprecated.
+    `cli/__main__.py` is real code — `cli/updater.py` spawns
+    `-m zotero_mcp.cli version` to read back the version it just installed
+    — so those argv strings must not be flagged, while a `-m` target with
+    no `__main__.py` on disk still must be.
+    """
+
+    CLI_SHIMS = {"zotero_mcp.cli": "zotero_mcp.cli.manage"}
+    FLAT_SHIMS = {"zotero_mcp.cli_standalone": "zotero_mcp.cli.standalone"}
+
+    def test_argv_list_form_is_not_flagged(self, cli_src_root):
+        line = '            [interpreter, "-E", "-m", "zotero_mcp.cli", "version"],'
+        assert _violations_in_line(line, self.CLI_SHIMS, cli_src_root) == []
+
+    def test_single_string_form_is_not_flagged(self, cli_src_root):
+        line = '    """Spawns `python -m zotero_mcp.cli version` in a child interpreter."""'
+        assert _violations_in_line(line, self.CLI_SHIMS, cli_src_root) == []
+
+    def test_target_without_a_main_module_is_still_flagged(self, cli_src_root):
+        """`cli_standalone` is a flat shim file, not a package, so there is
+        no `cli_standalone/__main__.py` — spawning it is a stale reference."""
+        line = '[sys.executable, "-m", "zotero_mcp.cli_standalone", "--json-schema"]'
+        assert _violations_in_line(line, self.FLAT_SHIMS, cli_src_root) == [
+            ("zotero_mcp.cli_standalone", "zotero_mcp.cli.standalone")
+        ]
+
+    def test_a_patch_string_on_the_same_line_is_still_flagged(self, cli_src_root):
+        """The `-m` exemption is positional: the same dotted path written a
+        second time, as a patch target, must still be caught."""
+        line = 'run([sys.executable, "-m", "zotero_mcp.cli"]); setattr("zotero_mcp.cli.some_function", x)'
+        assert _violations_in_line(line, self.CLI_SHIMS, cli_src_root) == [
+            ("zotero_mcp.cli", "zotero_mcp.cli.manage")
+        ]
+
+    def test_a_bare_import_of_the_package_is_unaffected(self, cli_src_root):
+        assert _violations_in_line("import zotero_mcp.cli", self.CLI_SHIMS, cli_src_root) == [
             ("zotero_mcp.cli", "zotero_mcp.cli.manage")
         ]
 
