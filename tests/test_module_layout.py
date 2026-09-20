@@ -25,12 +25,22 @@ import pytest
 
 # Old dotted path -> new dotted path. Each move PR appends its own row(s)
 # here as part of moving a module; this map is the single source of truth
-# both guard tests below check against. Empty in PR 0 (scaffolding) because
-# nothing has moved yet: with no rows, the two whole-tree guards below scan
-# nothing at all and pass vacuously. What keeps the scan itself honest until
-# PR 1 adds a row is `test_whole_tree_scan_finds_and_formats_real_hits`,
-# which runs it over the real tree against a synthetic row.
-SHIMS: dict[str, str] = {}
+# both guard tests below check against. It is also what makes them read the
+# tree at all: with no rows, `_find_violations` returns immediately and the
+# two whole-tree guards pass having opened nothing. That is why the scan is
+# pinned separately, against a synthetic row, by
+# `test_whole_tree_scan_finds_and_formats_real_hits` below -- a green guard
+# here means "scanned and clean" only for as long as that test holds.
+SHIMS: dict[str, str] = {
+    # PR 2 -- attachments/. Four of the seven were renamed by the move.
+    "zotero_mcp.extract": "zotero_mcp.attachments.extract",
+    "zotero_mcp.fulltext_cache": "zotero_mcp.attachments.fulltext_cache",
+    "zotero_mcp.pdf_utils": "zotero_mcp.attachments.pdf",
+    "zotero_mcp.pdf_layout": "zotero_mcp.attachments.pdf_layout",
+    "zotero_mcp.epub_utils": "zotero_mcp.attachments.epub",
+    "zotero_mcp.pdfannots_helper": "zotero_mcp.attachments.pdfannots",
+    "zotero_mcp.pdfannots_downloader": "zotero_mcp.attachments.pdfannots_installer",
+}
 
 # This file lives at the top level of tests/ (never inside a subpackage —
 # see the module docstring in tests/conftest.py for why tests/ has no
@@ -227,12 +237,14 @@ _VIOLATION_RE = re.compile(
 def test_whole_tree_scan_finds_and_formats_real_hits():
     """The whole-tree scan must actually read the tree and report hits.
 
-    With `SHIMS` empty, `_find_violations` returns immediately and the two
-    guards above read **no files at all** — they pass without touching a
-    single line of the tree, and would go on passing if the file walk, the
-    line scanner or the message format broke. This runs the same scan over
-    the same real files against `_SYNTHETIC_ROW`, so the machinery is
-    proven before PR 1 adds the first real row.
+    The two guards above are green precisely when they find nothing, so on
+    their own they cannot tell "scanned the whole tree, all clean" from
+    "read no files at all" — and they really do read nothing whenever
+    `SHIMS` is empty, or whenever the file walk, the line scanner or the
+    message format has broken. This runs the same scan over the same real
+    files against `_SYNTHETIC_ROW`, whose old path is still everywhere, so
+    the machinery behind those guards is proven independently of what
+    `SHIMS` happens to hold.
 
     The count is deliberately not asserted: it drifts every time a module
     moves. What is asserted is that hits exist in both trees, that every

@@ -36,7 +36,7 @@ This feature adds the ability to create highlight annotations on PDF attachments
                                   │
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Text Search (pdf_utils.py)                    │
+│                 Text Search (attachments/pdf.py)                 │
 │                                                                  │
 │  Strategy Order:                                                 │
 │  1. Anchor-based (for text >100 chars)                          │
@@ -64,7 +64,7 @@ This feature adds the ability to create highlight annotations on PDF attachments
 
 ---
 
-## File: `pdf_utils.py` (816 lines)
+## File: `attachments/pdf.py` (816 lines at the time of this write-up)
 
 ### Module Structure
 

@@ -5,10 +5,11 @@ anything — the rules below exist because breaking one of them has cost this pr
 
 ## Status of this document
 
-> **The package tree is still flat.** `src/zotero_mcp/` is a directory of modules with two subpackages
-> (`tools/` and `embeddings/`). The packages described below — `backends/`, `attachments/`,
-> `metadata_sources/`, `semantic_search/`, `cli/`, `formatting/` — **do not exist yet**. They arrive one at a
-> time, and the [shim table](#5-shims) in this document is empty because nothing has moved.
+> **The package tree is still mostly flat.** `src/zotero_mcp/` is a directory of modules with three
+> subpackages: `tools/`, `embeddings/`, and `attachments/` — the first one this refactor created. The
+> packages still described below as *target* — `backends/`, `metadata_sources/`, `semantic_search/`, `cli/`,
+> `formatting/` — **do not exist yet**. They arrive one at a time, each leaving deprecation shims behind it;
+> the [shim table](#5-shims) in this document has one row per module moved so far.
 
 This is a target document, not a description of the current directory listing. Every table that follows
 carries a **Status** column with one of two values:
@@ -26,10 +27,13 @@ src/zotero_mcp/
 ├── toolsets.py  prompts.py  resources.py  config.py  config_light.py
 ├── schema.py  identifiers.py  search_semantics.py  utils.py  library.py
 ├── client.py  local_db.py  better_bibtex_client.py  webdav.py  scite_client.py
-├── extract.py  fulltext_cache.py  pdf_utils.py  pdf_layout.py  epub_utils.py
-├── pdfannots_helper.py  pdfannots_downloader.py  citation_import.py  html_metadata.py
+├── citation_import.py  html_metadata.py
 ├── semantic_search.py  chroma_client.py  batch_common.py  openai_batch.py  gemini_batch.py
 ├── cli.py  cli_standalone.py  cli_json.py  setup_helper.py  updater.py  skill_install.py
+├── extract.py  fulltext_cache.py  pdf_utils.py  pdf_layout.py  epub_utils.py
+├── pdfannots_helper.py  pdfannots_downloader.py
+│       ^ those seven are deprecation shims, forwarding into attachments/
+├── attachments/       # attachment text, PDF and EPUB access, annotation import
 ├── embeddings/        # provider adapters
 ├── tools/             # the MCP tool surface, with tools/_helpers.py and tools/write.py
 ├── data/  skills/     # package data, not Python packages
@@ -47,7 +51,7 @@ puts that cost straight back.
 | package root (flat) | MCP wiring (`_app`, `_context`, `server`, `toolsets`, `prompts`, `resources`), vocabulary and config (`config`, `config_light`, `schema`, `identifiers`, `search_semantics`), `_shim`, `_version`, and — for now — `utils.py` and every module not yet claimed by a package below | `__init__.py` exports `__version__` eagerly and exposes `mcp` lazily (PEP 562); nothing else. `_version.py` never moves: `[tool.hatch.version]` reads it by path. | now |
 | package root, after `utils.py` is split | `utils.py` is not replaced by a `utils/` package. Its process-level odds and ends stay flat as `distribution.py`, `paths.py`, `_stdio.py` and `search_variants.py`; its formatting functions go to `formatting/` and its backend selection to `backends/`. | Each stays stdlib-only, as `utils.py` largely is today. | target |
 | `backends/` | Systems that hold library data: `library.py` (the `Protocol` and its fallback), `api.py`, `sqlite.py`, `bibtex.py`, `webdav.py`, `scite.py`, plus backend `selection.py` and `pagination.py` | Empty `__init__.py`. No pyzotero, no sqlite connection, no network client at import time. `pagination.py` must stay stdlib-only: `cli_standalone.py` imports it at top level and defers pyzotero. | target |
-| `attachments/` | Zotero's word for the files under an item: their text (`extract.py`, `fulltext_cache.py`), PDF and EPUB access (`pdf.py`, `pdf_layout.py`, `epub.py`), annotation import (`pdfannots.py`, `pdfannots_installer.py`), and where to find an open-access copy (`openaccess.py`) | Empty `__init__.py`. PyMuPDF (`fitz`) is an optional dependency and must be imported inside functions, never at module scope in the `__init__`. | target |
+| `attachments/` | Zotero's word for the files under an item: their text (`extract.py`, `fulltext_cache.py`), PDF and EPUB access (`pdf.py`, `pdf_layout.py`, `epub.py`) and annotation import (`pdfannots.py`, `pdfannots_installer.py`). Where to find an open-access copy (`openaccess.py`) still has to move here. | `__init__.py` is a docstring and nothing else. PyMuPDF (`fitz`) and `ebooklib` are optional dependencies and are imported inside functions, never at module scope. | now |
 | `metadata_sources/` | Where bibliographic metadata comes from outside Zotero: `crossref.py`, `arxiv.py`, `isbn.py`, `webpage.py`, `citation_import.py`, `html_metadata.py` | Empty `__init__.py`. No `requests` at import time. | target |
 | `semantic_search/` | The feature's own name in the CLI and the config file: `engine.py`, `chroma.py`, `batch/`, `embeddings/`, and the pieces split out of the engine (`lock`, `chunking`, `reranker`, `settings`, `documents`, `sync_state`, `sources/`, `indexer`, `query`, …) | `__init__.py` is a lazy forwarder to `engine`; it imports nothing. This is the strictest rule in the tree: `_app.py` and `cli.py` both decide from config *whether* to use semantic search, and both gates are only meaningful while ChromaDB is still unimported (#485). | target |
 | `cli/` | Console commands: `manage.py`, `standalone.py`, `envelope.py`, `wizard.py`, `updater.py`, `skill_install.py`, `semantic_db.py`, and `__main__.py` | `__init__.py` forwards `main` permanently (it is an entry-point target, not a deprecation shim) and imports nothing else. The `#485` config gates live here. | target |
@@ -230,9 +234,12 @@ row 16, so without the exemption no PR could add its own row. The exemption is e
 were scanned. Keep a real reference out of it — if you need to demonstrate one, write it in a unit-test
 fixture with a row that is not in `SHIMS`, as the tests there do.
 
-**With `SHIMS` empty the two whole-tree guards read no files at all** and pass vacuously, so until PR 1 adds
-a row the scan itself is proven by `test_whole_tree_scan_finds_and_formats_real_hits`, which runs it over the
-real tree against a synthetic `zotero_mcp.utils` row and checks the hits and their formatting.
+**A green guard means "scanned the tree, found nothing" only while the scan itself is proven.** The guards
+report by *not* finding anything, and reading no files at all looks identical — which is what they do when
+`SHIMS` is empty, and what a broken file walk, line scanner or message format would make them do at any
+time. `test_whole_tree_scan_finds_and_formats_real_hits` runs the same scan over the real tree against a
+synthetic `zotero_mcp.utils` row and checks the hits and their formatting, pinning the machinery
+independently of what `SHIMS` happens to hold.
 
 **A row whose old path becomes a real package matches by prefix, minus the real submodules.** When a flat
 module becomes a package of the same name — the `cli` case, where `zotero_mcp.cli` -> `zotero_mcp.cli.manage`
@@ -279,7 +286,13 @@ the CHANGELOG.
 
 | Old import path | New import path |
 |---|---|
-| _(none yet — no module has moved)_ | |
+| `zotero_mcp.extract` | `zotero_mcp.attachments.extract` |
+| `zotero_mcp.fulltext_cache` | `zotero_mcp.attachments.fulltext_cache` |
+| `zotero_mcp.pdf_utils` | `zotero_mcp.attachments.pdf` |
+| `zotero_mcp.pdf_layout` | `zotero_mcp.attachments.pdf_layout` |
+| `zotero_mcp.epub_utils` | `zotero_mcp.attachments.epub` |
+| `zotero_mcp.pdfannots_helper` | `zotero_mcp.attachments.pdfannots` |
+| `zotero_mcp.pdfannots_downloader` | `zotero_mcp.attachments.pdfannots_installer` |
 
 Every shim starts warning in the same release and is removed in the same later one. Those two versions are
 `MOVED_IN` and `REMOVED_IN` in `src/zotero_mcp/_shim.py`, and they are written nowhere else: not in this

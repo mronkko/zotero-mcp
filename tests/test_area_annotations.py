@@ -43,7 +43,7 @@ class FakeDocument:
 
 
 def _patch_fitz(monkeypatch, pages):
-    """Patch fitz in sys.modules so imports inside pdf_utils succeed."""
+    """Patch fitz in sys.modules so imports inside attachments.pdf succeed."""
     fake_fitz = types.ModuleType("fitz")
     fake_fitz.open = lambda *_args, **_kwargs: FakeDocument(pages)
     monkeypatch.setitem(sys.modules, "fitz", fake_fitz)
