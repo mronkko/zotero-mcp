@@ -352,8 +352,11 @@ Three notes on the `semantic_search/` rows, because each one is a shape later PR
   `__getattr__`, so each submodule needs a real file; and an alias would let the interpreter execute each
   provider module a second time under its old name, re-running `@register_embedding_function` and silently
   replacing the class registered under that provider's name.
-- `embeddings/providers/` gets **no shim**. Nothing outside the package ever referenced it; the providers are
-  reached through the registry.
+- `embeddings/providers/` gets **no shim**, because it is internal to `semantic_search/`. Its importers at
+  the old paths were the registry, `chroma_client.py` and `gemini_batch.py` — all three are inside the package
+  now — plus in-tree tests, updated in the same commit. Every other caller reaches a provider through the
+  registry. (Not "nothing outside the package referenced it": `chroma_client.py` and `gemini_batch.py` were
+  outside it then and are inside it now, which is the whole reason no shim is needed.)
 
 ## 6. The import-cost budget
 
