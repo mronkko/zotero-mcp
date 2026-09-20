@@ -24,7 +24,10 @@ from zotero_mcp._shim import forwarder
 # the old `cli.py` exported.
 _SUBMODULES = frozenset({"manage", "standalone", "envelope", "wizard", "updater", "skill_install", "semantic_db"})
 
-_forward = forwarder(__name__, "zotero_mcp.cli.manage")
+# stacklevel=3: the closure is called from the `__getattr__` below, one frame further in than the
+# plain shims, and a warning attributed to this module instead of the caller is swallowed by
+# CPython's default `ignore::DeprecationWarning`. See `_shim.forwarder`.
+_forward = forwarder(__name__, "zotero_mcp.cli.manage", stacklevel=3)
 
 
 def __getattr__(name: str):

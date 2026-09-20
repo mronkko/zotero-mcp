@@ -16,11 +16,21 @@ class MovedModuleWarning(DeprecationWarning):
     """A name was imported from a module path that moved in ``MOVED_IN``."""
 
 
-def forwarder(old: str, new: str | dict[str, str]):
+def forwarder(old: str, new: str | dict[str, str], stacklevel: int = 2):
     """Build a PEP 562 ``__getattr__`` forwarding ``old``'s names to ``new`` (one module path, or a
     name -> module-path map for a split module). Nothing is imported until a name is used, so importing
     the old path costs nothing; each use warns at the caller's line. Patching a name on the old module
-    does not reach the package: patch the new path."""
+    does not reach the package: patch the new path.
+
+    ``stacklevel`` counts the frames between the access and this closure's ``warnings.warn``, and it is
+    what makes the warning *visible*: CPython's default filters are ``default::DeprecationWarning:__main__``
+    followed by ``ignore::DeprecationWarning``, and the module they match on is the one the reported frame
+    belongs to. The default 2 is right when the closure is bound straight to ``__getattr__``. A shim that
+    needs logic of its own -- a package-as-shim exempting its real submodules, or an entry-point target
+    forwarded silently -- calls the closure from *its* ``__getattr__``, one frame further in, and must pass
+    ``stacklevel=3``; otherwise every warning is attributed to the shim module itself, ``ignore`` swallows
+    it, and the deprecation is announced to nobody.
+    """
 
     def __getattr__(name: str):
         if name.startswith("__"):  # inspect/pytest probing __path__ etc. must not import the target
@@ -32,7 +42,7 @@ def forwarder(old: str, new: str | dict[str, str]):
         warnings.warn(
             f"{old}.{name} moved to {target}.{name} in {MOVED_IN}; this alias is removed in {REMOVED_IN}",
             MovedModuleWarning,
-            stacklevel=2,
+            stacklevel=stacklevel,
         )
         return value
 

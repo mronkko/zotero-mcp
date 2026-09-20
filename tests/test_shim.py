@@ -338,3 +338,153 @@ def test_the_release_scan_flags_a_spelled_out_version(tmp_path):
         f"# not a release of ours: 1{moved}, {moved}.1, {removed}1\n"
     )
     assert [n for _, n, _ in _release_mentions(path)] == [1, 2]
+
+
+# --- Console-script entry-point targets ------------------------------------
+#
+# A console script records its target module and attribute when it is
+# *installed*, so an installation made before a move keeps resolving the old
+# path on every single invocation of the command: there is no import in the
+# user's own code to update, and nothing but a reinstall changes it. Routing
+# that resolution through the forwarder prints a deprecation notice to a real
+# user's terminal every time they run the command -- and for the stdio MCP
+# server it lands on the wrong stream. The shims a console script can land on
+# therefore special-case `main` and forward it permanently and silently; see
+# docs/architecture.md, "Entry-point targets are not on this table's terms".
+#
+# Neither the commands nor the old paths are written out here. The commands
+# come from `[project.scripts]`, so a fourth one cannot be added without being
+# covered, and the stale path each one recorded is looked up by inverting
+# `SHIMS` -- which is also what keeps this file clean for
+# `test_module_layout.py`'s guard, since a quoted old path anywhere under
+# tests/ is a violation and this file is not the exempt one.
+
+from test_module_layout import SHIMS  # noqa: E402  (the guard's single source of truth)
+
+_PYPROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
+
+# A name that is *not* an entry-point target, defined by every module a console
+# script resolves through, used to prove the exemption is one name and not a
+# blanket silence.
+NON_ENTRY_POINT_ATTRIBUTE = "setup_zotero_environment"
+
+# pip writes a console script in this shape, and line 4 is the resolution the
+# shim's `__getattr__` serves. The real tail is `sys.exit(main())`; exiting 0
+# instead leaves the streams carrying nothing but what resolving the entry
+# point emits, so the command's own output can neither mask a warning nor
+# stand in for one. What matters is that `__name__` is `__main__`: CPython's
+# default filters are `default::DeprecationWarning:__main__` followed by
+# `ignore::DeprecationWarning`, so a DeprecationWarning subclass is shown here
+# and nowhere else -- which is why this has to run as a script rather than as
+# an attribute access inside the suite.
+_CONSOLE_SCRIPT = """\
+#!{python}
+# -*- coding: utf-8 -*-
+import sys
+from {module} import {name}
+if __name__ == '__main__':
+    sys.exit(0)
+"""
+_RESOLUTION_LINE = 4  # the `from ... import ...` line of the wrapper above
+
+
+def _console_scripts() -> dict[str, tuple[str, str]]:
+    """`[project.scripts]` as command -> (module, attribute), read from pyproject.toml.
+
+    Parsed with a regex rather than `tomllib`, which is 3.11+ while this
+    package supports 3.10, and read rather than taken from installed metadata
+    because the installed tool is not what this checkout's tests may consult.
+    """
+    text = _PYPROJECT.read_text(encoding="utf-8")
+    block = re.search(r"^\[project\.scripts\]$(.*?)(?=^\[|\Z)", text, re.M | re.S)
+    assert block, "pyproject.toml has no [project.scripts] table"
+    entries = re.findall(r"""^\s*([\w.-]+)\s*=\s*["']([\w.]+):(\w+)["']""", block.group(1), re.M)
+    assert entries, f"no console scripts parsed from:\n{block.group(1)}"
+    return {command: (module, attribute) for command, module, attribute in entries}
+
+
+def _stale_target(module: str) -> str:
+    """The path a pre-move installation recorded for a command that now names
+    ``module`` -- the `SHIMS` row pointing at it, or ``module`` itself if it
+    has never moved."""
+    return {new: old for old, new in SHIMS.items()}.get(module, module)
+
+
+def _run_console_script(tmp_path, command: str, module: str, name: str = "main"):
+    """Run a pip-shaped console-script wrapper for ``module:name`` against this
+    checkout, under the interpreter's *default* warning filters.
+
+    Nothing is installed: PYTHONPATH points at `src/`, and PYTHONWARNINGS is
+    dropped so a developer's environment can neither silence the warning this
+    asserts on nor manufacture one.
+    """
+    script = tmp_path / command
+    script.write_text(_CONSOLE_SCRIPT.format(python=sys.executable, module=module, name=name))
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONWARNINGS"}
+    env["PYTHONPATH"] = SRC
+    return subprocess.run(
+        [sys.executable, str(script)],
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=30,
+    )
+
+
+def test_the_console_scripts_are_the_three_this_project_documents():
+    """Guard on the parametrisation below: it is driven by pyproject.toml, so
+    it silently covers nothing if the table stops parsing, and silently misses
+    a command if one is added. Both show up here."""
+    scripts = _console_scripts()
+    assert sorted(scripts) == ["zotero-cli", "zotero-mcp", "zotero-mcp-server"]
+    assert {attribute for _module, attribute in scripts.values()} == {"main"}, (
+        f"a console script names an attribute other than `main`, which nothing exempts: {scripts}"
+    )
+
+
+@pytest.mark.parametrize("command", sorted(_console_scripts()))
+def test_a_stale_console_script_resolves_main_without_warning(tmp_path, command):
+    """Every console script this project installs must resolve its recorded
+    `main` silently, including when the recorded target is a path that has
+    since moved -- which is what every installation made before the move has.
+
+    Both streams are asserted empty, not just stderr: `zotero-mcp` serves the
+    MCP protocol over stdio, where a stray line on stdout corrupts the session
+    outright.
+    """
+    module, attribute = _console_scripts()[command]
+    stale = _stale_target(module)
+
+    proc = _run_console_script(tmp_path, command, stale, name=attribute)
+
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout == "", f"{command} ({stale}:{attribute}) wrote to stdout: {proc.stdout!r}"
+    assert proc.stderr == "", f"{command} ({stale}:{attribute}) wrote to stderr: {proc.stderr!r}"
+
+
+@pytest.mark.parametrize("module", sorted({module for module, _attribute in _console_scripts().values()}))
+def test_every_other_name_on_an_entry_point_shim_still_warns_at_the_callers_line(tmp_path, module):
+    """The `main` exemption must not leak to the rest of the module, and the
+    warning must still be *visible*.
+
+    Both of these shims wrap `forwarder`'s closure in a `__getattr__` of their
+    own, one frame further from the access than the plain shims, so they pass
+    ``stacklevel=3``. With the default 2 the warning is attributed to the shim
+    module instead of the caller, `ignore::DeprecationWarning` swallows it,
+    and the deprecation is announced to nobody -- a failure no in-process
+    `pytest.warns` check can see, because that arms a filter of its own.
+    Asserting the reported location is the wrapper's own line pins the
+    visibility and the stacklevel together.
+    """
+    stale = _stale_target(module)
+    if stale == module:
+        pytest.skip(f"{module} has no shim row; there is no old path to warn from")
+
+    proc = _run_console_script(tmp_path, "probe", stale, name=NON_ENTRY_POINT_ATTRIBUTE)
+
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stderr.count("MovedModuleWarning") == 1, f"expected exactly one warning, got: {proc.stderr!r}"
+    assert f"probe:{_RESOLUTION_LINE}: MovedModuleWarning" in proc.stderr, (
+        f"the warning must point at the caller's line, not inside the shim: {proc.stderr!r}"
+    )
+    assert f"{stale}.{NON_ENTRY_POINT_ATTRIBUTE} moved to" in proc.stderr
