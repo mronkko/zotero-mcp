@@ -370,6 +370,9 @@ prove nothing. It checks that:
 - `from zotero_mcp import mcp` still resolves, and is the same object as `zotero_mcp.server.mcp` (this one
   and the `dir()` and `AttributeError` checks beside it run in-process — they are about transparency, not
   cost);
+- `import zotero_mcp.semantic_search` loads no ChromaDB and stays under the budget, and neither it nor
+  `from zotero_mcp.semantic_search import chroma` loads `semantic_search.engine` — the property the gates
+  below rest on, and the one an eager import or a name missing from `_SUBMODULES` loses silently;
 - the `#485` startup gates decide from config *before* importing `semantic_search` or ChromaDB, for a missing
   config file, an absent reranker block, a disabled reranker and an unparseable config alike;
 - `config_light` can answer the reranker gate without importing chromadb or numpy.

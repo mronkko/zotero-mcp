@@ -91,6 +91,95 @@ def test_unknown_attribute_raises_attribute_error() -> None:
 
 
 # ---------------------------------------------------------------------------
+# `semantic_search/` stays lazy: the property the #485 gates below rest on
+# ---------------------------------------------------------------------------
+
+# The engine, under its full dotted name. `_modules_after_importing` keeps only
+# each name's top-level part -- enough for `chromadb`, blind to a submodule of
+# `zotero_mcp` itself, which is exactly what has to stay unimported here.
+ENGINE = "zotero_mcp.semantic_search.engine"
+
+# Every way into the package that must not cost the engine: the package itself,
+# and a real submodule reached through it. The second one is the one that can
+# break silently -- `semantic_search/__init__.py` forwards unknown names to the
+# engine, so a submodule missing from its `_SUBMODULES` set is resolved by the
+# forwarder instead of by the import system, and importing the engine imports
+# ChromaDB. PRs 12-15 all edit that file.
+PATHS_INTO_SEMANTIC_SEARCH = (
+    "import zotero_mcp.semantic_search",
+    "from zotero_mcp.semantic_search import chroma",
+)
+
+
+def _sys_modules_after_importing(statement: str) -> set[str]:
+    """Full `sys.modules` names loaded by `statement` in a fresh interpreter.
+
+    Nothing may be imported between the statement and the snapshot -- not even
+    `json` -- or the count below measures the probe instead of the import.
+    """
+    code = (
+        "import sys\n"
+        f"sys.path.insert(0, {SRC!r})\n"
+        f"{statement}\n"
+        "loaded = sorted(sys.modules)\n"
+        "print(' '.join(loaded))\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return set(result.stdout.split())
+
+
+@pytest.mark.parametrize("statement", PATHS_INTO_SEMANTIC_SEARCH)
+def test_reaching_into_semantic_search_does_not_load_the_engine(statement: str) -> None:
+    """Neither the package nor one of its submodules may pull in the engine.
+
+    This is the headline property of the move: `semantic_search.py` became a
+    package whose `__init__.py` imports nothing, so `_app.py` and `cli.py` can
+    decide from config *whether* to use semantic search before paying for it
+    (#485). Two ways to lose it, both of which leave the rest of the suite
+    green: an eager `from zotero_mcp.semantic_search import engine` in the
+    `__init__`, and a submodule name dropped from `_SUBMODULES`, after which
+    `from zotero_mcp.semantic_search import <name>` is answered by the
+    forwarder -- which imports the engine to answer it.
+    """
+    loaded = _sys_modules_after_importing(statement)
+
+    assert ENGINE not in loaded, (
+        f"{statement!r} imported {ENGINE} ({len(loaded)} modules loaded). "
+        f"Either something in semantic_search/__init__.py imports the engine "
+        f"eagerly, or a submodule is missing from its `_SUBMODULES` set and is "
+        f"being resolved by the forwarder instead of by the import system."
+    )
+
+
+def test_importing_the_semantic_search_package_loads_no_chromadb() -> None:
+    """The package itself must stay inside the import-cost budget.
+
+    Only the package: `chroma` is the ChromaDB client, so importing *it*
+    loads chromadb by design, and only the engine assertion above applies
+    there. Measured for docs/architecture.md, "The budget": 65 modules on
+    CPython 3.11, against the same under-100 budget every lazy `__init__.py`
+    in the tree is held to; importing the engine instead costs ~1111.
+    """
+    loaded = _sys_modules_after_importing("import zotero_mcp.semantic_search")
+
+    assert "chromadb" not in loaded, (
+        f"`import zotero_mcp.semantic_search` pulled in chromadb "
+        f"({len(loaded)} modules loaded); the #485 startup gates decide from "
+        f"config precisely to avoid that cost."
+    )
+    assert len(loaded) < 100, (
+        f"`import zotero_mcp.semantic_search` loaded {len(loaded)} modules, "
+        f"over the under-100 budget in docs/architecture.md; the package "
+        f"__init__ must import nothing."
+    )
+
+
+# ---------------------------------------------------------------------------
 # #485: startup gates must decide from config before importing ChromaDB
 # ---------------------------------------------------------------------------
 
