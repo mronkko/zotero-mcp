@@ -26,14 +26,14 @@ import pytest
 chromadb = pytest.importorskip("chromadb")  # noqa: F841
 
 
-from zotero_mcp.semantic_search import ZoteroSemanticSearch  # noqa: E402
+from zotero_mcp.semantic_search.engine import ZoteroSemanticSearch  # noqa: E402
 
 
 @pytest.fixture
 def search(monkeypatch):
     # Avoid network / env requirements: stub both clients.
     monkeypatch.setattr(
-        "zotero_mcp.semantic_search.get_zotero_client", lambda: MagicMock()
+        "zotero_mcp.semantic_search.engine.get_zotero_client", lambda: MagicMock()
     )
     return ZoteroSemanticSearch(chroma_client=MagicMock())
 

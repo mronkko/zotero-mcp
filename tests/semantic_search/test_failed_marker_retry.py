@@ -16,8 +16,8 @@ if sys.version_info >= (3, 14):
         allow_module_level=True,
     )
 
-from zotero_mcp import semantic_search
 from zotero_mcp.extract import DEFAULT_ATTACHMENT_PRIORITY
+from zotero_mcp.semantic_search import engine as semantic_search
 
 DATE_MODIFIED = "2026-07-02 01:01:48"
 

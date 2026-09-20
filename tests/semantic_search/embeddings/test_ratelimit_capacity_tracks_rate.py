@@ -7,7 +7,7 @@ slept about 34 hours for one request and looked hung.
 
 import inspect
 
-from zotero_mcp.embeddings.ratelimit import AdaptiveRateLimiter
+from zotero_mcp.semantic_search.embeddings.ratelimit import AdaptiveRateLimiter
 
 
 class _Clock:

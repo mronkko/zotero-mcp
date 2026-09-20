@@ -31,7 +31,7 @@ if sys.version_info >= (3, 14):
 if importlib.util.find_spec("chromadb") is None:
     pytest.skip("chromadb not installed", allow_module_level=True)
 
-from zotero_mcp.chroma_client import ChromaClient
+from zotero_mcp.semantic_search.chroma import ChromaClient
 
 GROUP_ID = 6015547
 
@@ -237,7 +237,7 @@ def test_get_all_ids_where_never_matches_untagged_docs(client):
 # ---------------------------------------------------------------------------
 
 def test_backfill_end_to_end_against_real_chroma(client, monkeypatch):
-    from zotero_mcp import semantic_search
+    from zotero_mcp.semantic_search import engine as semantic_search
 
     tagged = _seed(client, 10, tagged_group_id=GROUP_ID, prefix="T")
     untagged = _seed(client, 1200, prefix="N")
@@ -265,7 +265,7 @@ def test_backfill_end_to_end_against_real_chroma(client, monkeypatch):
 def test_scoped_deletion_end_to_end_against_real_chroma(client, monkeypatch, tmp_path):
     import json
 
-    from zotero_mcp import semantic_search
+    from zotero_mcp.semantic_search import engine as semantic_search
 
     client.upsert_embeddings(
         documents=["live", "dead", "group"],
@@ -327,12 +327,22 @@ def _fake_chroma_classes():
     import importlib
     import pathlib
 
+    import conftest
+
+    # `tests/` is the import root (it has no `__init__.py`, every directory
+    # below it does), so a test file's dotted name is its path relative to
+    # here. Derived from conftest rather than from this file's own `__file__`,
+    # which only says how deep *this* file happens to sit.
+    tests_root = pathlib.Path(conftest.__file__).resolve().parent
+    this_file = pathlib.Path(__file__).resolve()
+
     classes = []
-    for path in sorted(pathlib.Path(__file__).parent.glob("test_*.py")):
-        if path.stem == pathlib.Path(__file__).stem:
-            continue
+    for path in sorted(tests_root.rglob("test_*.py")):
+        rel = path.resolve().relative_to(tests_root)
+        if path.resolve() == this_file or "live" in rel.parts:
+            continue  # `live/` is opt-in and hits the network on import
         try:
-            mod = importlib.import_module(path.stem)
+            mod = importlib.import_module(".".join(rel.with_suffix("").parts))
         except BaseException:  # module-level pytest.skip or missing optional dep
             continue
         for obj in vars(mod).values():
@@ -349,11 +359,11 @@ def _fake_chroma_classes():
 def test_fake_discovery_sees_the_core_fakes():
     names = {f"{c.__module__}.{c.__qualname__}" for c in _fake_chroma_classes()}
     for expected in (
-        "test_semantic_multilibrary._FakeChromaClient",
-        "test_sync_watermark_per_library.FakeChromaClient",
-        "test_fulltext_web_mode.FakeChromaClient",
-        "test_fulltext_sync_watermark.FakeChroma",
-        "test_library_scoped_deletion.RecordingChroma",
+        "semantic_search.test_semantic_multilibrary._FakeChromaClient",
+        "semantic_search.test_sync_watermark_per_library.FakeChromaClient",
+        "semantic_search.test_fulltext_web_mode.FakeChromaClient",
+        "semantic_search.test_fulltext_sync_watermark.FakeChroma",
+        "semantic_search.test_library_scoped_deletion.RecordingChroma",
     ):
         assert expected in names
 

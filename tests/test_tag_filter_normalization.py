@@ -197,9 +197,9 @@ class TestSearchItemsIntegration:
             seen.append(path)
             return _NoResults()
 
-        stub = types.ModuleType("zotero_mcp.semantic_search")
+        stub = types.ModuleType("zotero_mcp.semantic_search.engine")
         stub.create_semantic_search = _record
-        monkeypatch.setitem(sys.modules, "zotero_mcp.semantic_search", stub)
+        monkeypatch.setitem(sys.modules, "zotero_mcp.semantic_search.engine", stub)
 
         from zotero_mcp import server
         from conftest import DummyContext

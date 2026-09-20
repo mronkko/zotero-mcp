@@ -27,10 +27,10 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from zotero_mcp.embeddings.providers.gemini import GeminiEmbeddingFunction
-from zotero_mcp.embeddings.providers.huggingface import HuggingFaceEmbeddingFunction
-from zotero_mcp.embeddings.providers.ollama import OllamaEmbeddingFunction
-from zotero_mcp.embeddings.providers.openai import OpenAIEmbeddingFunction
+from zotero_mcp.semantic_search.embeddings.providers.gemini import GeminiEmbeddingFunction
+from zotero_mcp.semantic_search.embeddings.providers.huggingface import HuggingFaceEmbeddingFunction
+from zotero_mcp.semantic_search.embeddings.providers.ollama import OllamaEmbeddingFunction
+from zotero_mcp.semantic_search.embeddings.providers.openai import OpenAIEmbeddingFunction
 
 
 @dataclass(frozen=True)

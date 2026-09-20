@@ -16,7 +16,7 @@ assert the *caching behaviour* without loading the real ~30s model.
 
 import pytest
 
-from zotero_mcp import semantic_search
+from zotero_mcp.semantic_search import engine as semantic_search
 
 
 class _FakeReranker:

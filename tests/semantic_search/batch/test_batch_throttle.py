@@ -23,7 +23,10 @@ if sys.version_info >= (3, 14):
 
 pytest.importorskip("chromadb")
 
-from zotero_mcp import batch_common, gemini_batch, openai_batch, semantic_search  # noqa: E402
+from zotero_mcp.semantic_search import engine as semantic_search  # noqa: E402
+from zotero_mcp.semantic_search.batch import common as batch_common  # noqa: E402
+from zotero_mcp.semantic_search.batch import gemini as gemini_batch  # noqa: E402
+from zotero_mcp.semantic_search.batch import openai as openai_batch  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Token estimation + token-aware slicing

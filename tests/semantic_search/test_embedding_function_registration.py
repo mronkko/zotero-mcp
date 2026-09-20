@@ -31,7 +31,7 @@ from chromadb.utils.embedding_functions import (  # noqa: E402
     known_embedding_functions,
 )
 
-from zotero_mcp import chroma_client  # noqa: E402
+from zotero_mcp.semantic_search import chroma as chroma_client  # noqa: E402
 
 
 @pytest.mark.parametrize(

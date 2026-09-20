@@ -45,7 +45,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-from zotero_mcp.embeddings.ratelimit import AdaptiveRateLimiter
+from zotero_mcp.semantic_search.embeddings.ratelimit import AdaptiveRateLimiter
 from zotero_mcp.utils import install_hint
 
 try:

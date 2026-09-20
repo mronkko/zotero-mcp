@@ -10,12 +10,12 @@ Note the two distinct registries in play, which are easy to confuse:
 - ChromaDB's ``known_embedding_functions`` — a name -> class map used to rebuild
   an embedding function from a *persisted collection's* config. That is what
   the decorator and :func:`ensure_embedding_functions_registered` below feed.
-- zotero-mcp's own provider registry in :mod:`zotero_mcp.embeddings.registry` —
-  a name -> :class:`~zotero_mcp.embeddings.registry.ProviderSpec` map used to
+- zotero-mcp's own provider registry in :mod:`zotero_mcp.semantic_search.embeddings.registry` —
+  a name -> :class:`~zotero_mcp.semantic_search.embeddings.registry.ProviderSpec` map used to
   turn a *user's configured* ``embedding_model`` string into a constructed
   embedding function.
 
-These modules depend only on :mod:`zotero_mcp.embeddings.base`, never on
+These modules depend only on :mod:`zotero_mcp.semantic_search.embeddings.base`, never on
 ``chroma_client`` or on the provider registry, so neither import direction can
 cycle.
 """
@@ -24,10 +24,10 @@ import logging
 
 from chromadb.utils.embedding_functions import register_embedding_function
 
-from zotero_mcp.embeddings.providers.gemini import GeminiEmbeddingFunction
-from zotero_mcp.embeddings.providers.huggingface import HuggingFaceEmbeddingFunction
-from zotero_mcp.embeddings.providers.ollama import OllamaEmbeddingFunction
-from zotero_mcp.embeddings.providers.openai import OpenAIEmbeddingFunction
+from zotero_mcp.semantic_search.embeddings.providers.gemini import GeminiEmbeddingFunction
+from zotero_mcp.semantic_search.embeddings.providers.huggingface import HuggingFaceEmbeddingFunction
+from zotero_mcp.semantic_search.embeddings.providers.ollama import OllamaEmbeddingFunction
+from zotero_mcp.semantic_search.embeddings.providers.openai import OpenAIEmbeddingFunction
 
 logger = logging.getLogger(__name__)
 

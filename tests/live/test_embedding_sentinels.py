@@ -39,9 +39,9 @@ if sys.version_info >= (3, 14):
 
 pytest.importorskip("chromadb")
 
-from zotero_mcp.embeddings.providers.gemini import GeminiEmbeddingFunction  # noqa: E402
-from zotero_mcp.embeddings.providers.ollama import OllamaEmbeddingFunction  # noqa: E402
-from zotero_mcp.embeddings.registry import create_embedding_function  # noqa: E402
+from zotero_mcp.semantic_search.embeddings.providers.gemini import GeminiEmbeddingFunction  # noqa: E402
+from zotero_mcp.semantic_search.embeddings.providers.ollama import OllamaEmbeddingFunction  # noqa: E402
+from zotero_mcp.semantic_search.embeddings.registry import create_embedding_function  # noqa: E402
 
 SENTINELS_DIR = Path(__file__).parent / "sentinels"
 

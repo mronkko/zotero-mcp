@@ -637,7 +637,7 @@ class TestVerificationGuidance:
         monkeypatch.setattr(search_module.Path, "home", lambda: tmp_path)
 
         monkeypatch.setattr(
-            "zotero_mcp.semantic_search.create_semantic_search", fake_create
+            "zotero_mcp.semantic_search.engine.create_semantic_search", fake_create
         )
 
         ctx = DummyContext()

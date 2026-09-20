@@ -59,8 +59,8 @@ if os.environ.get(LIVE_BATCH_ENV_VAR, "").strip() != "1":
         allow_module_level=True,
     )
 
-from zotero_mcp import batch_common  # noqa: E402
-from zotero_mcp.embeddings.registry import create_embedding_function  # noqa: E402
+from zotero_mcp.semantic_search.batch import common as batch_common  # noqa: E402
+from zotero_mcp.semantic_search.embeddings.registry import create_embedding_function  # noqa: E402
 
 CONFIG_PATH = Path.home() / ".config" / "zotero-mcp" / "config.json"
 

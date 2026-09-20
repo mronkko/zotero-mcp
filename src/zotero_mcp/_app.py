@@ -27,7 +27,7 @@ logging.basicConfig(
 def _sync_semantic_update() -> None:
     """Check for and run semantic search auto-update (called in a worker thread).
 
-    Every early return below happens *before* ``zotero_mcp.semantic_search`` is
+    Every early return below happens *before* ``zotero_mcp.semantic_search.engine`` is
     imported. That module pulls in ChromaDB and numpy, which costs roughly a
     second even when warm, and on Windows the import — running here, in the
     lifespan's worker thread — wedged the process for the length of the first
@@ -56,7 +56,7 @@ def _sync_semantic_update() -> None:
     if not should_update(update_cfg):
         return
 
-    from zotero_mcp.semantic_search import create_semantic_search
+    from zotero_mcp.semantic_search.engine import create_semantic_search
 
     search = create_semantic_search(str(config_path))
     if not search.should_update_database():

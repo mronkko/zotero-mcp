@@ -17,7 +17,7 @@ if sys.version_info >= (3, 14):
         allow_module_level=True,
     )
 
-from zotero_mcp.chroma_client import ChromaClient
+from zotero_mcp.semantic_search.chroma import ChromaClient
 
 
 class FakeCollection:

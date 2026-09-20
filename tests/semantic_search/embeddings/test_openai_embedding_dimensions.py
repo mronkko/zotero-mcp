@@ -21,7 +21,7 @@ import pytest
 
 pytest.importorskip("chromadb")
 
-from zotero_mcp.embeddings.providers.openai import OpenAIEmbeddingFunction  # noqa: E402
+from zotero_mcp.semantic_search.embeddings.providers.openai import OpenAIEmbeddingFunction  # noqa: E402
 
 
 def _make(dimensions=None):
@@ -91,7 +91,7 @@ def test_registry_factory_forwards_dimensions(monkeypatch):
     pytest.importorskip("openai")
     monkeypatch.setenv("OPENAI_API_KEY", "test-key-no-network")
 
-    from zotero_mcp.embeddings.registry import create_embedding_function
+    from zotero_mcp.semantic_search.embeddings.registry import create_embedding_function
 
     ef = create_embedding_function(
         "openai", {"model_name": "text-embedding-3-large", "dimensions": 1024}

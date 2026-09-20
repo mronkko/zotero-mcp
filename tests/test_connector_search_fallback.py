@@ -14,7 +14,7 @@ def test_keyword_fallback_when_semantic_search_is_unavailable(monkeypatch, dummy
     def unavailable(_config_path):
         raise ImportError("chromadb is not installed")
 
-    monkeypatch.setattr("zotero_mcp.semantic_search.create_semantic_search", unavailable)
+    monkeypatch.setattr("zotero_mcp.semantic_search.engine.create_semantic_search", unavailable)
     monkeypatch.setattr(connectors._library, "get_library_backend", lambda: _Backend())
 
     out = json.loads(connectors.chatgpt_connector_search("attention", ctx=dummy_ctx))

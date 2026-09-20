@@ -7,7 +7,7 @@ import pytest
 if sys.version_info >= (3, 14):
     pytest.skip("chromadb is incompatible with Python 3.14+", allow_module_level=True)
 
-from zotero_mcp.semantic_search import _drop_missing_documents
+from zotero_mcp.semantic_search.engine import _drop_missing_documents
 
 
 def _results(docs):

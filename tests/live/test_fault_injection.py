@@ -37,8 +37,8 @@ import requests  # noqa: E402
 from pytest_httpserver import HTTPServer  # noqa: E402
 from werkzeug.wrappers import Request, Response  # noqa: E402
 
-from zotero_mcp.embeddings.providers.ollama import OllamaEmbeddingFunction  # noqa: E402
-from zotero_mcp.embeddings.providers.openai import OpenAIEmbeddingFunction  # noqa: E402
+from zotero_mcp.semantic_search.embeddings.providers.ollama import OllamaEmbeddingFunction  # noqa: E402
+from zotero_mcp.semantic_search.embeddings.providers.openai import OpenAIEmbeddingFunction  # noqa: E402
 
 OLLAMA_SUCCESS_BODY = {"embeddings": [[0.1, 0.2, 0.3]]}
 OPENAI_SUCCESS_BODY = {

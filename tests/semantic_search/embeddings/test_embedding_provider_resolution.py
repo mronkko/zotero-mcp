@@ -12,7 +12,7 @@ The env-merge half in particular had no coverage at all, which is what made it
 risky to consolidate. Everything here is written against the public surface
 (``chroma_client.ChromaClient`` / ``chroma_client.create_chroma_client``) and
 never imports the registry, so this file passes unchanged both before and after
-the providers moved into ``zotero_mcp.embeddings`` — it describes behaviour, not
+the providers moved into ``zotero_mcp.semantic_search.embeddings`` — it describes behaviour, not
 structure.
 
 Construction is intercepted by patching the embedding function class's own
@@ -28,7 +28,7 @@ import pytest
 
 pytest.importorskip("chromadb")
 
-from zotero_mcp import chroma_client  # noqa: E402
+from zotero_mcp.semantic_search import chroma as chroma_client  # noqa: E402
 
 # Every environment variable the code under test consults. Cleared before each
 # test so a developer's real shell (or a leaked GOOGLE_API_KEY) cannot change

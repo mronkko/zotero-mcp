@@ -45,8 +45,8 @@ import chromadb  # noqa: E402
 from chromadb.config import Settings  # noqa: E402
 from chromadb.utils.embedding_functions import register_embedding_function  # noqa: E402
 
-from zotero_mcp.chroma_client import ChromaClient  # noqa: E402
-from zotero_mcp.embeddings.base import RemoteEmbeddingFunction  # noqa: E402
+from zotero_mcp.semantic_search.chroma import ChromaClient  # noqa: E402
+from zotero_mcp.semantic_search.embeddings.base import RemoteEmbeddingFunction  # noqa: E402
 
 COLLECTION = "embed_query_contract"
 PROVIDER_NAME = "stub_remote_provider"

@@ -28,7 +28,7 @@ if sys.version_info >= (3, 14):
     )
 
 from zotero_mcp import client as zclient
-from zotero_mcp import semantic_search
+from zotero_mcp.semantic_search import engine as semantic_search
 
 GROUP_ID = 6015547
 
@@ -520,7 +520,7 @@ def test_backfill_failure_log_does_not_recommend_force_rebuild(monkeypatch, tmp_
 
     monkeypatch.setattr(search, "_backfill_group_ids", _boom)
 
-    with caplog.at_level(logging.ERROR, logger="zotero_mcp.semantic_search"):
+    with caplog.at_level(logging.ERROR, logger="zotero_mcp.semantic_search.engine"):
         search.update_database()
 
     failures = [r.message for r in caplog.records if "backfill failed" in r.message]
@@ -546,7 +546,7 @@ def test_unattributed_count_is_persisted_and_rewarned_on_later_updates(monkeypat
     assert saved["backfill_unattributed"] == 1
     assert saved["index_schema_version"] == 3
 
-    with caplog.at_level(logging.WARNING, logger="zotero_mcp.semantic_search"):
+    with caplog.at_level(logging.WARNING, logger="zotero_mcp.semantic_search.engine"):
         search.update_database()
     warned = [r.message for r in caplog.records if "attribut" in r.message]
     assert warned, "later updates must keep warning about unattributed docs"

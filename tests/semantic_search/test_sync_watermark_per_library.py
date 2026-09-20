@@ -24,7 +24,7 @@ if sys.version_info >= (3, 14):
     )
 
 from zotero_mcp import client as zclient
-from zotero_mcp import semantic_search
+from zotero_mcp.semantic_search import engine as semantic_search
 
 GROUP_ID = 6015547
 

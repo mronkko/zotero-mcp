@@ -5,7 +5,7 @@ from typing import Any
 
 from chromadb.utils.embedding_functions import register_embedding_function
 
-from zotero_mcp.embeddings.base import RemoteEmbeddingFunction
+from zotero_mcp.semantic_search.embeddings.base import RemoteEmbeddingFunction
 
 
 @register_embedding_function

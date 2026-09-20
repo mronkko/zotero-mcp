@@ -19,7 +19,7 @@ import pytest
 requests = pytest.importorskip("requests")
 pytest.importorskip("chromadb")
 
-from zotero_mcp.chroma_client import (  # noqa: E402
+from zotero_mcp.semantic_search.chroma import (  # noqa: E402
     ChromaClient,
     OllamaEmbeddingFunction,
 )

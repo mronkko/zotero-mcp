@@ -60,7 +60,7 @@ class AdaptiveRateLimiter:
     """Thread-safe token-bucket limiter with AIMD rate adaptation.
 
     One instance is shared by every worker thread embedding through a single
-    :class:`~zotero_mcp.embeddings.base.RemoteEmbeddingFunction`, so ``burst``
+    :class:`~zotero_mcp.semantic_search.embeddings.base.RemoteEmbeddingFunction`, so ``burst``
     should be at least as large as that function's ``max_parallel_requests`` —
     otherwise parallel workers serialize behind a bucket that only ever holds
     one token.

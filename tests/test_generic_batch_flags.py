@@ -20,7 +20,7 @@ if sys.version_info >= (3, 14):
 pytest.importorskip("chromadb")
 
 
-from zotero_mcp import semantic_search  # noqa: E402
+from zotero_mcp.semantic_search import engine as semantic_search  # noqa: E402
 
 
 class _FakeChroma:
@@ -174,9 +174,9 @@ def test_batch_provider_choices_match_registry():
     This is the check that keeps the literal honest — importing both batch
     modules is what registers their adapters.
     """
-    import zotero_mcp.gemini_batch  # noqa: F401 — registers its batch adapter
-    import zotero_mcp.openai_batch  # noqa: F401 — registers its batch adapter
+    import zotero_mcp.semantic_search.batch.gemini  # noqa: F401 — registers its batch adapter
+    import zotero_mcp.semantic_search.batch.openai  # noqa: F401 — registers its batch adapter
     from zotero_mcp.cli import BATCH_PROVIDERS
-    from zotero_mcp.embeddings.registry import batch_capable_providers
+    from zotero_mcp.semantic_search.embeddings.registry import batch_capable_providers
 
     assert set(BATCH_PROVIDERS) == set(batch_capable_providers())

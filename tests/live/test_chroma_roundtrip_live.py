@@ -30,7 +30,7 @@ if sys.version_info >= (3, 14):
 
 pytest.importorskip("chromadb")
 
-from zotero_mcp.chroma_client import ChromaClient  # noqa: E402
+from zotero_mcp.semantic_search.chroma import ChromaClient  # noqa: E402
 
 OLLAMA_MODEL = "nomic-embed-text"
 

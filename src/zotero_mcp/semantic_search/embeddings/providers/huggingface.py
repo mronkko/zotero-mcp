@@ -6,7 +6,7 @@ from typing import Any
 from chromadb import Documents, Embeddings
 from chromadb.utils.embedding_functions import register_embedding_function
 
-from zotero_mcp.embeddings.base import BaseEmbeddingFunction
+from zotero_mcp.semantic_search.embeddings.base import BaseEmbeddingFunction
 
 logger = logging.getLogger(__name__)
 

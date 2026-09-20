@@ -112,7 +112,7 @@ for thread in threading.enumerate():
         thread.join(timeout=120)
 
 print(json.dumps({{
-    "semantic_search": "zotero_mcp.semantic_search" in sys.modules,
+    "semantic_search": "zotero_mcp.semantic_search.engine" in sys.modules,
     "chromadb": "chromadb" in sys.modules,
 }}))
 """
@@ -159,7 +159,7 @@ def test_reranker_warmup_gates_before_importing_chromadb(tmp_path, label, raw_co
     892 ms and chromadb loaded with the reranker explicitly disabled.
     """
     seen = _warmup_imports(tmp_path, raw_config)
-    assert not seen["semantic_search"], f"{label}: imported zotero_mcp.semantic_search"
+    assert not seen["semantic_search"], f"{label}: imported zotero_mcp.semantic_search.engine"
     assert not seen["chromadb"], f"{label}: imported chromadb"
 
 

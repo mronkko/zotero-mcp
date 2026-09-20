@@ -4,8 +4,8 @@ ChromaDB client for semantic search functionality.
 This module provides persistent vector database storage for semantic search
 over Zotero libraries.
 
-The embedding functions themselves now live in :mod:`zotero_mcp.embeddings`.
-They are re-exported below because ``zotero_mcp.chroma_client`` is where every
+The embedding functions themselves now live in :mod:`zotero_mcp.semantic_search.embeddings`.
+They are re-exported below because ``zotero_mcp.semantic_search.chroma`` is where every
 caller — and every existing test — imports them from, and because ChromaDB's
 registry maps a persisted collection's embedding-function name to a specific
 class object, so the re-exported name has to *be* the registered class.
@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 # Re-exported for backward compatibility; see the module docstring.
-from zotero_mcp.embeddings.providers import (  # noqa: F401
+from zotero_mcp.semantic_search.embeddings.providers import (  # noqa: F401
     CUSTOM_EMBEDDING_FUNCTIONS,
     GeminiEmbeddingFunction,
     HuggingFaceEmbeddingFunction,
@@ -27,7 +27,7 @@ from zotero_mcp.embeddings.providers import (  # noqa: F401
     OpenAIEmbeddingFunction,
     ensure_embedding_functions_registered,
 )
-from zotero_mcp.embeddings.registry import create_embedding_function, merge_env_config
+from zotero_mcp.semantic_search.embeddings.registry import create_embedding_function, merge_env_config
 from zotero_mcp.utils import ensure_private_dir, install_hint, suppress_stdout
 
 try:
@@ -145,7 +145,7 @@ class ChromaClient:
         """Create the appropriate embedding function based on configuration.
 
         The provider registry owns the model-string -> embedding-function
-        mapping; see :func:`zotero_mcp.embeddings.registry.resolve_provider`
+        mapping; see :func:`zotero_mcp.semantic_search.embeddings.registry.resolve_provider`
         for the resolution rules.
         """
         return create_embedding_function(self.embedding_model, self.embedding_config)

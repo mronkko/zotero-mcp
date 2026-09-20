@@ -113,7 +113,7 @@ def generate_ollama() -> None:
         print(f"skip ollama: 'nomic-embed-text' not pulled (pulled models: {sorted(pulled)})")
         return
 
-    from zotero_mcp.embeddings.providers.ollama import OllamaEmbeddingFunction
+    from zotero_mcp.semantic_search.embeddings.providers.ollama import OllamaEmbeddingFunction
 
     ef = OllamaEmbeddingFunction(model_name="nomic-embed-text", base_url=base_url)
     vector = ef.embed_query_text(SENTINEL_TEXT)
@@ -136,7 +136,7 @@ def generate_openai() -> None:
         print("skip openai: no OPENAI_API_KEY env var and no configured openai api_key in config.json")
         return
 
-    from zotero_mcp.embeddings.providers.openai import OpenAIEmbeddingFunction
+    from zotero_mcp.semantic_search.embeddings.providers.openai import OpenAIEmbeddingFunction
 
     model_name = "text-embedding-3-small"
     ef = OpenAIEmbeddingFunction(model_name=model_name, api_key=api_key)
@@ -160,7 +160,7 @@ def generate_gemini() -> None:
         print("skip gemini: no GEMINI_API_KEY/GOOGLE_API_KEY env var and no configured gemini api_key in config.json")
         return
 
-    from zotero_mcp.embeddings.providers.gemini import GeminiEmbeddingFunction
+    from zotero_mcp.semantic_search.embeddings.providers.gemini import GeminiEmbeddingFunction
 
     model_name = "gemini-embedding-001"  # GeminiEmbeddingFunction's default
     ef = GeminiEmbeddingFunction(model_name=model_name, api_key=api_key)

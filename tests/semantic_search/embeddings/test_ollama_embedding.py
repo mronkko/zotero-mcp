@@ -18,7 +18,7 @@ requests = pytest.importorskip("requests")
 pytest.importorskip("chromadb")
 import numpy as np  # noqa: E402
 
-from zotero_mcp.chroma_client import OllamaEmbeddingFunction  # noqa: E402
+from zotero_mcp.semantic_search.chroma import OllamaEmbeddingFunction  # noqa: E402
 
 
 class _FakeResponse:

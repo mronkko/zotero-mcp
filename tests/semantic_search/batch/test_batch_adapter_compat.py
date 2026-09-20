@@ -23,7 +23,9 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from zotero_mcp import batch_common, gemini_batch, openai_batch
+from zotero_mcp.semantic_search.batch import common as batch_common
+from zotero_mcp.semantic_search.batch import gemini as gemini_batch
+from zotero_mcp.semantic_search.batch import openai as openai_batch
 
 # ---------------------------------------------------------------------------
 # Fake SDK clients (mirrors tests/test_batch_throttle.py's fakes)

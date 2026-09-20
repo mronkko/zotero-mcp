@@ -44,7 +44,7 @@ if sys.version_info >= (3, 14):
 
 pytest.importorskip("chromadb")
 
-from zotero_mcp.embeddings.registry import create_embedding_function  # noqa: E402
+from zotero_mcp.semantic_search.embeddings.registry import create_embedding_function  # noqa: E402
 
 # Enough documents to span several sub-batches once request_batch_size is
 # forced low, so the parallel path genuinely has work to interleave.
@@ -59,7 +59,7 @@ def production_config(configured_provider):
     parallel path lives in RemoteEmbeddingFunction, shared by every remote
     provider, so whichever one is configured exercises it.
     """
-    from zotero_mcp.embeddings.registry import PROVIDERS
+    from zotero_mcp.semantic_search.embeddings.registry import PROVIDERS
 
     config_path = Path.home() / ".config" / "zotero-mcp" / "config.json"
     if not config_path.exists():

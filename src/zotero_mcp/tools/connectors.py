@@ -54,7 +54,7 @@ def chatgpt_connector_search(
     # still gives the connector something to cite.
     hits: list[tuple[str, str]] = []
     try:
-        from zotero_mcp.semantic_search import create_semantic_search
+        from zotero_mcp.semantic_search.engine import create_semantic_search
 
         config_path = Path.home() / ".config" / "zotero-mcp" / "config.json"
         search = create_semantic_search(str(config_path))

@@ -294,8 +294,8 @@ def _semantic_env(monkeypatch, tmp_path, sem, *, backend="sqlite", active_group=
     """Point the tool at `sem`, with a config file present and the SQLite gate
     satisfied (or not, per `backend`)."""
     from zotero_mcp import client as _client
-    from zotero_mcp import semantic_search as semantic_module
     from zotero_mcp import utils as _utils
+    from zotero_mcp.semantic_search import engine as semantic_module
     from zotero_mcp.tools import _helpers
 
     config_dir = tmp_path / ".config" / "zotero-mcp"

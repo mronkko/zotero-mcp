@@ -29,13 +29,12 @@ except Exception:
     _tokenizer = None
 
 
-from . import batch_common, fulltext_cache, gemini_batch, openai_batch
-from .chroma_client import ChromaClient, create_chroma_client
-from .client import get_active_group_id, get_zotero_client
+from zotero_mcp import fulltext_cache
+from zotero_mcp.client import get_active_group_id, get_zotero_client
 
 # Re-exported so callers keep importing them from here, while the
 # ChromaDB-free definitions stay importable without this module (#485).
-from .config_light import (  # noqa: F401
+from zotero_mcp.config_light import (  # noqa: F401
     _DEFAULT_RERANKER_CONFIG,
     _DEFAULT_UPDATE_CONFIG,
     load_reranker_config,
@@ -43,10 +42,14 @@ from .config_light import (  # noqa: F401
     reranker_enabled,
     should_update,
 )
-from .embeddings.registry import batch_capable_providers
-from .extract import PAGE_SEPARATOR
-from .local_db import PERSONAL_LIBRARY_GROUP_ID, LocalZoteroReader
-from .utils import _paginate, ensure_private_dir, format_creators, is_local_mode, suppress_stdout
+from zotero_mcp.extract import PAGE_SEPARATOR
+from zotero_mcp.local_db import PERSONAL_LIBRARY_GROUP_ID, LocalZoteroReader
+from zotero_mcp.semantic_search.batch import common as batch_common
+from zotero_mcp.semantic_search.batch import gemini as gemini_batch
+from zotero_mcp.semantic_search.batch import openai as openai_batch
+from zotero_mcp.semantic_search.chroma import ChromaClient, create_chroma_client
+from zotero_mcp.semantic_search.embeddings.registry import batch_capable_providers
+from zotero_mcp.utils import _paginate, ensure_private_dir, format_creators, is_local_mode, suppress_stdout
 
 logger = logging.getLogger(__name__)
 

@@ -15,7 +15,9 @@ if sys.version_info >= (3, 14):
 
 pytest.importorskip("chromadb")
 
-from zotero_mcp import gemini_batch, openai_batch, semantic_search  # noqa: E402
+from zotero_mcp.semantic_search import engine as semantic_search  # noqa: E402
+from zotero_mcp.semantic_search.batch import gemini as gemini_batch  # noqa: E402
+from zotero_mcp.semantic_search.batch import openai as openai_batch  # noqa: E402
 
 
 def test_build_embedding_request_v1_uses_task_type():

@@ -6,7 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from zotero_mcp import openai_batch, setup_helper
+from zotero_mcp import setup_helper
+from zotero_mcp.semantic_search.batch import openai as openai_batch
 
 if sys.version_info >= (3, 14):
     pytest.skip(
@@ -16,8 +17,8 @@ if sys.version_info >= (3, 14):
 
 pytest.importorskip("chromadb")
 
-from zotero_mcp import semantic_search  # noqa: E402
-from zotero_mcp.chroma_client import ChromaClient  # noqa: E402
+from zotero_mcp.semantic_search import engine as semantic_search  # noqa: E402
+from zotero_mcp.semantic_search.chroma import ChromaClient  # noqa: E402
 
 
 def test_build_embedding_request_uses_batch_embeddings_shape():

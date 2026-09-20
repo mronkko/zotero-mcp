@@ -213,7 +213,7 @@ def _preimport_semantic_search_on_main_thread() -> None:
     if not _should_preimport_semantic(sys.platform, str(_semantic_config_path(None))):
         return
     try:
-        import zotero_mcp.semantic_search  # noqa: F401
+        import zotero_mcp.semantic_search.engine  # noqa: F401
     except Exception:
         pass  # best-effort: a failed pre-import must not stop the server
 
@@ -245,7 +245,7 @@ def _warmup_reranker_in_background() -> None:
 
     def _run() -> None:
         try:
-            from zotero_mcp.semantic_search import warmup_reranker
+            from zotero_mcp.semantic_search.engine import warmup_reranker
         except Exception:
             return  # semantic extra not installed
         try:
@@ -295,7 +295,7 @@ def _provider_label(provider: str) -> str:
     lazy import here costs nothing extra.
     """
     try:
-        from zotero_mcp.embeddings.registry import PROVIDERS
+        from zotero_mcp.semantic_search.embeddings.registry import PROVIDERS
 
         spec = PROVIDERS.get(provider)
         if spec is not None and spec.batch is not None:
@@ -352,7 +352,7 @@ def _print_update_stats(stats: dict) -> None:
 
 def _detect_batch_provider(search) -> str:
     """Infer which provider's manifests to read from the configured model."""
-    from zotero_mcp.embeddings.registry import batch_capable_providers
+    from zotero_mcp.semantic_search.embeddings.registry import batch_capable_providers
 
     model = search.chroma_client.embedding_model
     providers = batch_capable_providers()
@@ -970,7 +970,7 @@ def main():
         config_path = Path.home() / ".config" / "zotero-mcp" / "config.json"
         if config_path.exists():
             try:
-                from zotero_mcp.semantic_search import create_semantic_search
+                from zotero_mcp.semantic_search.engine import create_semantic_search
 
                 # Get database status (similar to db-status command)
                 search = create_semantic_search(str(config_path))
@@ -1025,7 +1025,7 @@ def main():
         # Setup Zotero environment variables
         setup_zotero_environment()
 
-        from zotero_mcp.semantic_search import create_semantic_search
+        from zotero_mcp.semantic_search.engine import create_semantic_search
 
         # Determine config path
         config_path = _semantic_config_path(args.config_path)
@@ -1118,7 +1118,7 @@ def main():
     elif args.command in ("batch-status", "openai-batch-status"):
         setup_zotero_environment()
 
-        from zotero_mcp.semantic_search import create_semantic_search
+        from zotero_mcp.semantic_search.engine import create_semantic_search
 
         config_path = _semantic_config_path(args.config_path)
         try:
@@ -1134,7 +1134,7 @@ def main():
     elif args.command in ("batch-import", "openai-batch-import"):
         setup_zotero_environment()
 
-        from zotero_mcp.semantic_search import create_semantic_search
+        from zotero_mcp.semantic_search.engine import create_semantic_search
 
         config_path = _semantic_config_path(args.config_path)
         try:
@@ -1151,7 +1151,7 @@ def main():
         # Setup Zotero environment variables
         setup_zotero_environment()
 
-        from zotero_mcp.semantic_search import create_semantic_search
+        from zotero_mcp.semantic_search.engine import create_semantic_search
 
         # Determine config path
         config_path = args.config_path
@@ -1198,7 +1198,7 @@ def main():
 
         from collections import Counter
 
-        from zotero_mcp.semantic_search import create_semantic_search
+        from zotero_mcp.semantic_search.engine import create_semantic_search
 
         # Batch size for paginated collection scans (see _iter_all_metadatas).
         # Keeps each col.get() well under SQLite's bound-variable ceiling

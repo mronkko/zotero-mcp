@@ -22,7 +22,7 @@ pytest.importorskip("chromadb")
 
 import numpy as np  # noqa: E402  (a chromadb dependency)
 
-from zotero_mcp.embeddings.providers import (  # noqa: E402
+from zotero_mcp.semantic_search.embeddings.providers import (  # noqa: E402
     CUSTOM_EMBEDDING_FUNCTIONS,
     GeminiEmbeddingFunction,
     HuggingFaceEmbeddingFunction,

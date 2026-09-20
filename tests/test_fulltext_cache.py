@@ -191,7 +191,8 @@ def _run_update_db(monkeypatch, cfg, stats, extra_argv=()):
     """Drive the real ``update-db`` handler with the database work stubbed."""
     import sys
 
-    from zotero_mcp import cli, semantic_search
+    from zotero_mcp import cli
+    from zotero_mcp.semantic_search import engine as semantic_search
 
     class FakeSearch:
         chroma_client = None

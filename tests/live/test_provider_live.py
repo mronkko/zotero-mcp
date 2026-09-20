@@ -28,7 +28,7 @@ if sys.version_info >= (3, 14):
 
 pytest.importorskip("chromadb")
 
-from zotero_mcp.embeddings.registry import create_embedding_function  # noqa: E402
+from zotero_mcp.semantic_search.embeddings.registry import create_embedding_function  # noqa: E402
 
 DOCS = ["alpha short text", "beta short text", "gamma short text", "delta short text", "epsilon short text"]
 

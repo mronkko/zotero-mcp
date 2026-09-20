@@ -11,7 +11,7 @@ import pytest
 
 pytest.importorskip("chromadb")
 
-from zotero_mcp.embeddings.registry import (  # noqa: E402
+from zotero_mcp.semantic_search.embeddings.registry import (  # noqa: E402
     PROVIDERS,
     EnvSpec,
     ProviderSpec,

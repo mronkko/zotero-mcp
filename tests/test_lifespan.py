@@ -84,7 +84,7 @@ from zotero_mcp._app import _sync_semantic_update
 _sync_semantic_update()
 
 print(json.dumps({
-    "semantic_search": "zotero_mcp.semantic_search" in sys.modules,
+    "semantic_search": "zotero_mcp.semantic_search.engine" in sys.modules,
     "chromadb": "chromadb" in sys.modules,
 }))
 """
@@ -144,7 +144,7 @@ def test_no_due_update_never_imports_chromadb(tmp_path, label, raw_config):
     """
     seen = _probe(tmp_path, raw_config)
 
-    assert not seen["semantic_search"], f"{label}: imported zotero_mcp.semantic_search"
+    assert not seen["semantic_search"], f"{label}: imported zotero_mcp.semantic_search.engine"
     assert not seen["chromadb"], f"{label}: imported chromadb"
 
 
@@ -167,7 +167,7 @@ def test_due_update_does_import_the_heavy_module(tmp_path):
     script = (
         "import json, pathlib, sys\n"
         "pathlib.Path.home = staticmethod(lambda: pathlib.Path(sys.argv[1]))\n"
-        "import zotero_mcp.semantic_search as ss\n"
+        "import zotero_mcp.semantic_search.engine as ss\n"
         "def boom(*a, **k):\n"
         "    raise RuntimeError('stop')\n"
         "ss.create_semantic_search = boom\n"
@@ -204,7 +204,7 @@ def test_config_light_has_no_heavy_dependencies():
             "-c",
             "import sys, json; import zotero_mcp.config_light; "
             "print(json.dumps(sorted(m for m in ('chromadb', 'numpy', 'torch', "
-            "'zotero_mcp.semantic_search') if m in sys.modules)))",
+            "'zotero_mcp.semantic_search.engine') if m in sys.modules)))",
         ],
         capture_output=True,
         text=True,

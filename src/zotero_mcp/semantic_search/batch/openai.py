@@ -18,10 +18,8 @@ import os
 from pathlib import Path
 from typing import Any
 
-from zotero_mcp.embeddings.registry import attach_batch_adapter
-
-from . import batch_common
-from .batch_common import (
+from zotero_mcp.semantic_search.batch import common as batch_common
+from zotero_mcp.semantic_search.batch.common import (
     _json_dumps,  # noqa: F401 — re-exported for provider-symmetric callers/tests
     _jsonable,
     _object_attr,
@@ -32,6 +30,7 @@ from .batch_common import (
     save_manifest,  # noqa: F401 — re-exported; generic flows now call batch_common's directly
     write_jsonl,  # noqa: F401 — re-exported; generic flows now call batch_common's directly
 )
+from zotero_mcp.semantic_search.embeddings.registry import attach_batch_adapter
 
 OPENAI_BATCH_ENDPOINT = "/v1/embeddings"
 OPENAI_BATCH_COMPLETION_WINDOW = "24h"

@@ -19,7 +19,7 @@ if sys.version_info >= (3, 14):
         allow_module_level=True,
     )
 
-from zotero_mcp import semantic_search
+from zotero_mcp.semantic_search import engine as semantic_search
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +121,7 @@ class TestCombineStructuredAndFulltext:
 class TestGeminiQueryEmbedding:
     def test_gemini_embed_query_text_uses_retrieval_query(self):
         """Verify GeminiEmbeddingFunction.embed_query_text passes retrieval_query task type."""
-        from zotero_mcp.chroma_client import GeminiEmbeddingFunction
+        from zotero_mcp.semantic_search.chroma import GeminiEmbeddingFunction
 
         mock_client = MagicMock()
         mock_embedding = MagicMock()
@@ -149,7 +149,7 @@ class TestGeminiQueryEmbedding:
 
     def test_gemini_call_uses_retrieval_document(self):
         """Verify GeminiEmbeddingFunction.__call__ still uses retrieval_document."""
-        from zotero_mcp.chroma_client import GeminiEmbeddingFunction
+        from zotero_mcp.semantic_search.chroma import GeminiEmbeddingFunction
 
         mock_client = MagicMock()
         mock_embedding = MagicMock()
@@ -195,7 +195,7 @@ class TestGeminiV2Support:
         Bypasses the genai client setup so tests stay hermetic. Replicates
         the post-__init__ instance shape for v2 models.
         """
-        from zotero_mcp.chroma_client import GeminiEmbeddingFunction
+        from zotero_mcp.semantic_search.chroma import GeminiEmbeddingFunction
         ef = GeminiEmbeddingFunction.__new__(GeminiEmbeddingFunction)
         ef.model_name = model_name
         ef.client = mock_client
@@ -205,7 +205,7 @@ class TestGeminiV2Support:
 
     def test_v2_call_prepends_doc_prefix_no_config(self):
         """v2 __call__ must prepend V2_DOC_PREFIX and pass no EmbedContentConfig."""
-        from zotero_mcp.chroma_client import GeminiEmbeddingFunction
+        from zotero_mcp.semantic_search.chroma import GeminiEmbeddingFunction
 
         mock_client = MagicMock()
         mock_embedding = MagicMock()
@@ -230,7 +230,7 @@ class TestGeminiV2Support:
 
     def test_v2_embed_query_text_prepends_query_prefix_no_config(self):
         """v2 embed_query_text must prepend V2_QUERY_PREFIX and pass no EmbedContentConfig."""
-        from zotero_mcp.chroma_client import GeminiEmbeddingFunction
+        from zotero_mcp.semantic_search.chroma import GeminiEmbeddingFunction
 
         mock_client = MagicMock()
         mock_embedding = MagicMock()
@@ -259,7 +259,7 @@ class TestGeminiV2Support:
         Otherwise pathological queries crash the API and the
         V2_PREFIX_TOKEN_BUDGET reservation in __init__ is meaningless.
         """
-        from zotero_mcp.chroma_client import GeminiEmbeddingFunction
+        from zotero_mcp.semantic_search.chroma import GeminiEmbeddingFunction
 
         mock_client = MagicMock()
         mock_embedding = MagicMock()
@@ -285,7 +285,7 @@ class TestGeminiV2Support:
 
     def test_v2_batch_preserves_order_across_chunks(self):
         """__call__ must chunk at GEMINI_MAX_BATCH and preserve input order."""
-        from zotero_mcp.chroma_client import GeminiEmbeddingFunction
+        from zotero_mcp.semantic_search.chroma import GeminiEmbeddingFunction
 
         mock_client = MagicMock()
         mock_types = MagicMock()
@@ -321,7 +321,7 @@ class TestGeminiV2Support:
         ('gemini-embedding-2-preview' and 'models/gemini-embedding-2-preview')
         must trigger the v2 detection in _is_v2().
         """
-        from zotero_mcp.chroma_client import GeminiEmbeddingFunction
+        from zotero_mcp.semantic_search.chroma import GeminiEmbeddingFunction
 
         # Constants are load-bearing for the budget arithmetic
         assert GeminiEmbeddingFunction.V2_PREFIX_TOKEN_BUDGET == 20
@@ -342,7 +342,7 @@ class TestGeminiV2Support:
 class TestSearchUsesEmbedQuery:
     def test_search_uses_query_embeddings_for_custom_ef(self):
         """ChromaClient.search should use query_embeddings for custom embedding functions."""
-        from zotero_mcp.chroma_client import ChromaClient, HuggingFaceEmbeddingFunction
+        from zotero_mcp.semantic_search.chroma import ChromaClient, HuggingFaceEmbeddingFunction
 
         mock_collection = MagicMock()
         mock_collection.query.return_value = {
@@ -371,7 +371,7 @@ class TestSearchUsesEmbedQuery:
 
     def test_search_falls_back_to_query_texts(self):
         """ChromaClient.search should use query_texts for a non-custom EF."""
-        from zotero_mcp.chroma_client import ChromaClient
+        from zotero_mcp.semantic_search.chroma import ChromaClient
 
         mock_collection = MagicMock()
         mock_collection.query.return_value = {
@@ -403,7 +403,7 @@ class TestDefaultEFUsesQueryTexts:
     vector per character."""
 
     def test_default_ef_uses_query_texts_not_embed_query(self):
-        from zotero_mcp.chroma_client import ChromaClient
+        from zotero_mcp.semantic_search.chroma import ChromaClient
 
         mock_collection = MagicMock()
         mock_collection.query.return_value = {
@@ -442,7 +442,7 @@ class TestDefaultEFUsesQueryTexts:
 
 class TestModelAwareTokenizer:
     def test_openai_truncate_uses_tiktoken(self):
-        from zotero_mcp.chroma_client import OpenAIEmbeddingFunction
+        from zotero_mcp.semantic_search.chroma import OpenAIEmbeddingFunction
 
         ef = OpenAIEmbeddingFunction.__new__(OpenAIEmbeddingFunction)
         # Long text that should be truncated to 5 tokens
@@ -453,7 +453,7 @@ class TestModelAwareTokenizer:
         assert len(result) > 0
 
     def test_gemini_truncate_uses_char_estimation(self):
-        from zotero_mcp.chroma_client import GeminiEmbeddingFunction
+        from zotero_mcp.semantic_search.chroma import GeminiEmbeddingFunction
 
         ef = GeminiEmbeddingFunction.__new__(GeminiEmbeddingFunction)
         text = "a" * 10000
@@ -462,7 +462,7 @@ class TestModelAwareTokenizer:
         assert len(result) == 400
 
     def test_huggingface_truncate_uses_model_tokenizer(self):
-        from zotero_mcp.chroma_client import HuggingFaceEmbeddingFunction
+        from zotero_mcp.semantic_search.chroma import HuggingFaceEmbeddingFunction
 
         mock_tokenizer = MagicMock()
         mock_tokenizer.encode.return_value = list(range(20))  # 20 tokens
@@ -481,7 +481,7 @@ class TestModelAwareTokenizer:
         assert result == "truncated text"
 
     def test_chroma_truncate_text_delegates_to_embedding_function(self):
-        from zotero_mcp.chroma_client import ChromaClient
+        from zotero_mcp.semantic_search.chroma import ChromaClient
 
         mock_ef = MagicMock()
         mock_ef.truncate.return_value = "truncated"
@@ -524,21 +524,21 @@ class TestTiktokenSpecialTokenHandling:
         return enc.decode(tokens)
 
     def test_openai_truncate_with_special_tokens(self):
-        from zotero_mcp.chroma_client import OpenAIEmbeddingFunction
+        from zotero_mcp.semantic_search.chroma import OpenAIEmbeddingFunction
 
         ef = OpenAIEmbeddingFunction.__new__(OpenAIEmbeddingFunction)
         result = ef.truncate(self.SPECIAL_TOKEN_TEXT, max_tokens=5)
         assert result == self._expected_truncation(self.SPECIAL_TOKEN_TEXT, 5)
 
     def test_openai_truncate_preserves_special_token_text(self):
-        from zotero_mcp.chroma_client import OpenAIEmbeddingFunction
+        from zotero_mcp.semantic_search.chroma import OpenAIEmbeddingFunction
 
         ef = OpenAIEmbeddingFunction.__new__(OpenAIEmbeddingFunction)
         result = ef.truncate(self.SPECIAL_TOKEN_TEXT, max_tokens=5000)
         assert result == self.SPECIAL_TOKEN_TEXT
 
     def test_chroma_truncate_text_fallback_with_special_tokens(self):
-        from zotero_mcp.chroma_client import ChromaClient
+        from zotero_mcp.semantic_search.chroma import ChromaClient
 
         client = ChromaClient.__new__(ChromaClient)
         # Use an embedding function without a truncate method to hit fallback
@@ -549,13 +549,13 @@ class TestTiktokenSpecialTokenHandling:
         assert result == self._expected_truncation(self.SPECIAL_TOKEN_TEXT, 5)
 
     def test_truncate_to_tokens_with_special_tokens(self):
-        from zotero_mcp.semantic_search import _truncate_to_tokens
+        from zotero_mcp.semantic_search.engine import _truncate_to_tokens
 
         result = _truncate_to_tokens(self.SPECIAL_TOKEN_TEXT, max_tokens=5)
         assert result == self._expected_truncation(self.SPECIAL_TOKEN_TEXT, 5)
 
     def test_truncate_to_tokens_preserves_special_token_text(self):
-        from zotero_mcp.semantic_search import _truncate_to_tokens
+        from zotero_mcp.semantic_search.engine import _truncate_to_tokens
 
         result = _truncate_to_tokens(self.SPECIAL_TOKEN_TEXT, max_tokens=5000)
         assert result == self.SPECIAL_TOKEN_TEXT

@@ -32,8 +32,8 @@ import pytest
 
 pytest.importorskip("chromadb")
 
-from zotero_mcp.embeddings.base import COMMON_CONFIG_KEYS, RemoteEmbeddingFunction  # noqa: E402
-from zotero_mcp.embeddings.ratelimit import AdaptiveRateLimiter  # noqa: E402
+from zotero_mcp.semantic_search.embeddings.base import COMMON_CONFIG_KEYS, RemoteEmbeddingFunction  # noqa: E402
+from zotero_mcp.semantic_search.embeddings.ratelimit import AdaptiveRateLimiter  # noqa: E402
 
 
 class FakeClock:

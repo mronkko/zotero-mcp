@@ -17,8 +17,8 @@ if sys.version_info >= (3, 14):
         allow_module_level=True,
     )
 
-from zotero_mcp import semantic_search
-from zotero_mcp.semantic_search import (
+from zotero_mcp.semantic_search import engine as semantic_search
+from zotero_mcp.semantic_search.engine import (
     _page_for_offset,
     best_snippet,
     split_into_passages,

@@ -21,7 +21,7 @@ from zotero_mcp.extract import (
     pick_by_priority,
 )
 from zotero_mcp.local_db import LocalZoteroReader
-from zotero_mcp.semantic_search import _attachment_priority_changed
+from zotero_mcp.semantic_search.engine import _attachment_priority_changed
 
 
 class TestCategorizeAttachment:

@@ -191,7 +191,7 @@ def count_requests_post(monkeypatch: pytest.MonkeyPatch) -> list[tuple[tuple, di
 
     ``OllamaEmbeddingFunction._embed_batch`` does ``import requests`` *inside*
     the method body, so there is no module attribute on
-    ``zotero_mcp.embeddings.providers.ollama`` to monkeypatch -- the global
+    ``zotero_mcp.semantic_search.embeddings.providers.ollama`` to monkeypatch -- the global
     ``requests.post`` is the only interception point.
     """
     calls: list[tuple[tuple, dict]] = []

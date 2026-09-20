@@ -8,7 +8,7 @@ install it).
 
 import threading
 
-from zotero_mcp.chroma_client import OpenAIEmbeddingFunction
+from zotero_mcp.semantic_search.chroma import OpenAIEmbeddingFunction
 
 
 def _make(batch_size=64, rps=None):

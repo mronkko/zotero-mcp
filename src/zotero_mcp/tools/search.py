@@ -502,7 +502,7 @@ def search_items(
                 # Strategy 4: Semantic search (if database exists)
                 if not _check_cascade_timeout() and not items:
                     try:
-                        from zotero_mcp.semantic_search import create_semantic_search
+                        from zotero_mcp.semantic_search.engine import create_semantic_search
                         config_path = Path.home() / ".config" / "zotero-mcp" / "config.json"
                         if config_path.exists():
                             ctx.info(f"Retry with semantic search: '{query}'")
@@ -1367,7 +1367,7 @@ def semantic_search(
 
         # Import semantic search module
         try:
-            from zotero_mcp.semantic_search import create_semantic_search
+            from zotero_mcp.semantic_search.engine import create_semantic_search
         except ImportError:
             return (
                 "Semantic search is not available.\n"
@@ -1500,7 +1500,7 @@ def update_search_database(
 
         # Import semantic search module
         try:
-            from zotero_mcp.semantic_search import create_semantic_search
+            from zotero_mcp.semantic_search.engine import create_semantic_search
         except ImportError:
             return (
                 "Semantic search is not available.\n"
@@ -1591,8 +1591,8 @@ def get_search_database_status(*, ctx: Context) -> str:
         # semantic-search modules so they share the [semantic] extra's import
         # guard, but neither loads an embedding model or a Zotero client.
         try:
-            from zotero_mcp.chroma_client import read_collection_status
-            from zotero_mcp.semantic_search import load_update_config, should_update
+            from zotero_mcp.semantic_search.chroma import read_collection_status
+            from zotero_mcp.semantic_search.engine import load_update_config, should_update
         except ImportError:
             return (
                 "Semantic search is not available.\n"

@@ -12,7 +12,7 @@ import json
 import sqlite3
 
 from zotero_mcp.local_db import LocalZoteroReader
-from zotero_mcp.semantic_search import ZoteroSemanticSearch
+from zotero_mcp.semantic_search.engine import ZoteroSemanticSearch
 
 
 def make_zotero_db(path, keys):

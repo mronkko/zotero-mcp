@@ -29,11 +29,8 @@ import warnings
 from pathlib import Path
 from typing import Any
 
-from zotero_mcp.embeddings.providers.gemini import GeminiEmbeddingFunction
-from zotero_mcp.embeddings.registry import attach_batch_adapter
-
-from . import batch_common
-from .batch_common import (
+from zotero_mcp.semantic_search.batch import common as batch_common
+from zotero_mcp.semantic_search.batch.common import (
     _json_dumps,
     _private_chmod,
     _utc_now,  # noqa: F401 — re-export
@@ -42,6 +39,8 @@ from .batch_common import (
     save_manifest,  # noqa: F401 — re-exported; generic flows now call batch_common's directly
     write_jsonl,  # noqa: F401 — re-exported; generic flows now call batch_common's directly
 )
+from zotero_mcp.semantic_search.embeddings.providers.gemini import GeminiEmbeddingFunction
+from zotero_mcp.semantic_search.embeddings.registry import attach_batch_adapter
 
 logger = logging.getLogger(__name__)
 
