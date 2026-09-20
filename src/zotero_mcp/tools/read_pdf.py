@@ -33,7 +33,7 @@ class PdfReadError(ToolError):
 
     Raising fixes both surfaces at once, because both already know how to
     report an exception: FastMCP marks the tool result as an error, and
-    ``cli_standalone.main`` turns it into an ``ok: false`` envelope with a
+    ``cli.standalone.main`` turns it into an ``ok: false`` envelope with a
     nonzero exit code. Neither needed a change.
 
     Subclasses ``ToolError`` so FastMCP treats it as a tool error rather than

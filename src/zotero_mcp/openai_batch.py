@@ -297,7 +297,7 @@ ADAPTER = OpenAIBatchAdapter()
 # ``batch_capable_providers()`` (registry.py) reports "openai" and the CLI's
 # ``--batch-provider`` choices include it. Import-time attachment is what
 # makes "has this module been imported?" and "is this provider batch-capable?"
-# the same question, which is the property cli.py's lazy import relies on.
+# the same question, which is the property cli/manage.py's lazy import relies on.
 attach_batch_adapter("openai", ADAPTER)
 
 

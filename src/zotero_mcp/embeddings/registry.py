@@ -110,7 +110,7 @@ def attach_batch_adapter(name: str, adapter: Any) -> ProviderSpec:
     ``ProviderSpec`` is frozen, so this replaces the stored spec rather than
     mutating it. ``openai_batch`` and ``gemini_batch`` each call this at module
     scope, which is why importing either module is what makes its provider
-    batch-capable — see the note on ``_load_batch_providers`` in ``cli.py``.
+    batch-capable — see the note on ``_load_batch_providers`` in ``cli/manage.py``.
     """
     updated = dataclasses.replace(PROVIDERS[name], batch=adapter)
     PROVIDERS[name] = updated

@@ -560,7 +560,7 @@ def store_local_write_credentials(
     """Cache credentials for this process and persist them. Returns the path.
 
     Persisted under its own ``local_api`` section rather than ``client_env``,
-    which ``setup_helper._write_standalone_config`` rebuilds from scratch on
+    which ``cli.wizard._write_standalone_config`` rebuilds from scratch on
     every ``zotero-mcp setup`` run and would silently drop the key.
 
     Returns None if the file could not be written, including when it exists

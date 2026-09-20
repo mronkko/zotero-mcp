@@ -234,7 +234,7 @@ def _warmup_reranker_in_background() -> None:
     # import above the check rather than below it. `config_light` answers it
     # from the config file alone.
     try:
-        # Imported here, not at module scope: cli.py keeps its import graph
+        # Imported here, not at module scope: this module keeps its import graph
         # small so `--version` stays fast (#445). config_light is stdlib-only.
         from zotero_mcp.config_light import reranker_enabled
 

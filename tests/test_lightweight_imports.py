@@ -154,7 +154,7 @@ def test_reranker_warmup_gates_before_importing_chromadb(tmp_path, label, raw_co
 
     `warmup_reranker` applies the `enabled` check itself, but it lives in
     `semantic_search`, so reaching it already paid for chromadb + numpy. That
-    is the #485 pattern a second time, in `cli.py` rather than `_app.py`: the
+    is the #485 pattern a second time, in `cli/manage.py` rather than `_app.py`: the
     import above the check rather than below it. Measured before the fix:
     892 ms and chromadb loaded with the reranker explicitly disabled.
     """

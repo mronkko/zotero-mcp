@@ -7,7 +7,7 @@ the MCP tool answered `isError: false`. A script or agent consuming either had
 to parse English to find out that nothing was read.
 
 These tests pin the two surfaces separately, because they fail independently:
-the CLI envelope is built by `cli_standalone.main`'s exception handler, and the
+the CLI envelope is built by `cli.standalone.main`'s exception handler, and the
 MCP flag is set by FastMCP. Both are downstream of the same raise, but only a
 test on each proves the raise actually reaches it.
 

@@ -424,7 +424,7 @@ ADAPTER = GeminiBatchAdapter()
 # Register this module's adapter with the provider registry so
 # ``batch_capable_providers()`` (registry.py) reports "gemini" and the CLI's
 # ``--batch-provider`` choices include it. See openai_batch.py's matching call
-# for why import-time attachment is what cli.py's lazy import relies on.
+# for why import-time attachment is what cli/manage.py's lazy import relies on.
 attach_batch_adapter("gemini", ADAPTER)
 
 
