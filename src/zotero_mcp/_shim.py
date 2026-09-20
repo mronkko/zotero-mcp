@@ -28,7 +28,13 @@ def forwarder(old: str, new: str | dict[str, str]):
         target = new if isinstance(new, str) else new.get(name)
         if target is None:
             raise AttributeError(f"module {old!r} has no attribute {name!r}")
-        value = getattr(import_module(target), name)
+        module = import_module(target)
+        try:
+            value = getattr(module, name)
+        except AttributeError:
+            # Name the path the caller typed. They never mentioned `target`, and an
+            # AttributeError about a module they have not heard of reads as a bug in ours.
+            raise AttributeError(f"module {old!r} has no attribute {name!r} (it forwards to {target})") from None
         warnings.warn(
             f"{old}.{name} moved to {target}.{name} in {MOVED_IN}; this alias is removed in {REMOVED_IN}",
             MovedModuleWarning,

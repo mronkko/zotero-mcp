@@ -125,6 +125,34 @@ def test_forwarder_dict_form_resolves_per_name_and_rejects_unmapped_names(tmp_pa
         _purge("old_mod_3", "target_mod_3a", "target_mod_3b")
 
 
+def test_a_missing_name_is_reported_against_the_path_the_caller_used(tmp_path, monkeypatch):
+    """A misspelling must be reported against the module the caller actually
+    typed, not the one they have never heard of.
+
+    `zotero_mcp.extract.extrac_text` raised "module
+    'zotero_mcp.attachments.extract' has no attribute 'extrac_text'", which
+    reads as a bug inside this package rather than a typo in the caller's
+    line. The new location still belongs in the message -- as context, not
+    as the subject.
+    """
+    monkeypatch.syspath_prepend(str(tmp_path))
+    (tmp_path / "target_mod_8.py").write_text("VALUE = 1\n")
+    (tmp_path / "old_mod_8.py").write_text(
+        "from zotero_mcp._shim import forwarder\n__getattr__ = forwarder(__name__, 'target_mod_8')\n"
+    )
+    try:
+        import old_mod_8
+
+        with pytest.raises(AttributeError) as excinfo:
+            old_mod_8.VALEU
+
+        message = str(excinfo.value)
+        assert message.startswith("module 'old_mod_8' has no attribute 'VALEU'"), message
+        assert "target_mod_8" in message, f"the new location is still worth saying: {message}"
+    finally:
+        _purge("old_mod_8", "target_mod_8")
+
+
 def test_forwarder_dunder_access_raises_without_importing_the_target(tmp_path, monkeypatch):
     """pytest/inspect probe dunders like __path__ constantly; those must not
     import the target module at all -- the property that makes a shim free
