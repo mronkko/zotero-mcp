@@ -16,6 +16,20 @@ string or ``from``/``import`` statement whose dotted path is a shim's old
 path (or a deeper attribute reached through it). It fails loudly, listing
 every hit as ``file:line: old -> use new``, so a move PR can't leave a
 stale reference behind. It does not scan itself -- see ``_test_files``.
+
+Relative imports are in scope too, resolved against the file's own package
+before being matched: ``from . import fulltext_cache`` in
+``src/zotero_mcp/local_db.py`` is ``zotero_mcp.fulltext_cache``. What they
+fail with differs from the absolute form, and is usually louder. Shims sit
+at ``zotero_mcp.<name>``; a relative import *inside a subpackage* resolves
+to ``zotero_mcp.<pkg>.<name>``, which no shim occupies, so naming a module
+that has moved away raises ``ModuleNotFoundError`` at import time -- it
+cannot quietly resolve through a shim and be patched as the wrong module.
+Only at the package root does ``from . import <name>`` land on the shim
+itself, where it behaves exactly like the absolute form. Either way this
+guard's value is naming the mistake in the PR that makes the move, with a
+message that says which path to use, rather than leaving it to be read off
+a traceback later.
 """
 
 import re
@@ -51,7 +65,9 @@ _REPO_ROOT = _GUARD_FILE.parents[1]
 _SRC_ROOT = _REPO_ROOT / "src"
 
 _QUOTED_PATH_RE = re.compile(r"""(['"])(zotero_mcp(?:\.[A-Za-z_][A-Za-z0-9_]*)+)\1""")
-_FROM_IMPORT_RE = re.compile(r"^\s*from\s+([A-Za-z_][\w.]*)\s+import\s+(.+)$")
+# The module part may be relative (``from . import x``, ``from ..pkg.mod import x``),
+# which `_resolve_relative_import` turns into an absolute path before anything is matched.
+_FROM_IMPORT_RE = re.compile(r"^\s*from\s+(\.*[A-Za-z_][\w.]*|\.+)\s+import\s+(.+)$")
 _IMPORT_RE = re.compile(r"^\s*import\s+(.+)$")
 
 
@@ -92,10 +108,41 @@ def _shim_match(path: str, old: str, src_root: Path | None = None) -> bool:
     return True
 
 
-def _candidates_from_line(line: str) -> list[str]:
+def _resolve_relative_import(module: str, package: str) -> str | None:
+    """Resolve a ``from <module> import ...`` target to an absolute dotted path.
+
+    An already-absolute `module` comes back unchanged. A relative one is
+    resolved the way Python resolves it, against `package` — the package the
+    importing *file* lives in, which is why the callers below have to be told
+    the file's own position in the tree. One leading dot means `package`
+    itself, each further dot climbs one level, and the remainder is appended:
+    ``from . import x`` in ``src/zotero_mcp/foo.py`` is ``zotero_mcp.x``, the
+    same line in ``src/zotero_mcp/pkg/foo.py`` is ``zotero_mcp.pkg.x``, and
+    ``from ..x import y`` there is ``zotero_mcp.x.y``.
+
+    Returns None when the resolution has no answer — the file's package is
+    unknown (a top-level script), or the dots climb past the top of the tree,
+    which Python rejects as well.
+    """
+    if not module.startswith("."):
+        return module
+    dots = len(module) - len(module.lstrip("."))
+    parts = package.split(".") if package else []
+    if dots > len(parts):
+        return None
+    base = parts[: len(parts) - (dots - 1)]
+    rest = module[dots:]
+    return ".".join(base + rest.split(".") if rest else base)
+
+
+def _candidates_from_line(line: str, package: str = "") -> list[str]:
     """Return the `zotero_mcp....` dotted paths a single line of source
     text references, either as a quoted string literal or as an import
     target (``import a.b.c[, ...]`` / ``from a.b import c[, ...]``).
+
+    `package` is the dotted package the line's own file lives in, used to
+    resolve a relative import; a line from a file whose package is unknown
+    contributes no candidates for its relative imports.
 
     For ``from X import Y``, the candidate is the combined ``X.Y`` (what is
     actually being reached), not bare ``X`` — otherwise a perfectly good
@@ -112,6 +159,10 @@ def _candidates_from_line(line: str) -> list[str]:
     from_match = _FROM_IMPORT_RE.match(line)
     if from_match:
         module, names_part = from_match.group(1), from_match.group(2)
+        resolved = _resolve_relative_import(module, package)
+        if resolved is None:
+            return candidates
+        module = resolved
         if module.startswith("zotero_mcp"):
             names_part = names_part.split("#", 1)[0].strip().strip("()")
             for piece in names_part.split(","):
@@ -132,17 +183,21 @@ def _candidates_from_line(line: str) -> list[str]:
     return candidates
 
 
-def _violations_in_line(line: str, shims: dict[str, str], src_root: Path | None = None) -> list[tuple[str, str]]:
+def _violations_in_line(
+    line: str, shims: dict[str, str], src_root: Path | None = None, package: str = ""
+) -> list[tuple[str, str]]:
     """Return the `(old, new)` shim rows that a line of source text references.
 
     `src_root` (the ``src/`` directory) is forwarded to `_shim_match` so it
     can tell a shim's old path apart from a real sibling submodule; omit it
-    for cases that don't turn on that distinction.
+    for cases that don't turn on that distinction. `package` is the dotted
+    package of the file the line came from, needed only to resolve a relative
+    import — omit it for a line whose imports are absolute.
     """
     if not shims:
         return []
     hits: list[tuple[str, str]] = []
-    for candidate in _candidates_from_line(line):
+    for candidate in _candidates_from_line(line, package):
         for old, new in shims.items():
             if _shim_match(candidate, old, src_root):
                 hits.append((old, new))
@@ -159,17 +214,40 @@ def _module_dotted_path(file: Path, src_root: Path) -> str:
     return ".".join(parts)
 
 
+def _package_of(file: Path, import_root: Path) -> str:
+    """Return the dotted package `file` lives in, as an importer would see it.
+
+    `import_root` is the directory the dotted path is counted from: ``src/``
+    for a production module, ``tests/`` for a test file (pytest puts the
+    rootdir-level test directory on ``sys.path``, so ``tests/attachments/`` is
+    the package ``attachments``). Dropping the last part is right for both a
+    plain module and an ``__init__.py``: the package of
+    ``zotero_mcp/pkg/foo.py`` and the package *that is*
+    ``zotero_mcp/pkg/__init__.py`` are both ``zotero_mcp.pkg``.
+
+    A file outside `import_root` has no package here, and gets ``""`` — which
+    makes its relative imports unresolvable rather than wrongly resolved.
+    """
+    try:
+        parts = list(file.relative_to(import_root).with_suffix("").parts)
+    except ValueError:
+        return ""
+    return ".".join(parts[:-1])
+
+
 def _find_violations(files: list[Path], shims: dict[str, str], repo_root: Path, src_root: Path) -> list[str]:
     """Scan `files` for references to a `shims` old-path and return one
     formatted ``file:line: old -> use new`` message per hit."""
     if not shims:
         return []
+    tests_root = repo_root / "tests"
     messages: list[str] = []
     for file in files:
         rel = file.relative_to(repo_root).as_posix()  # `src/...` on Windows too, as git prints it
+        package = _package_of(file, src_root if file.is_relative_to(src_root) else tests_root)
         text = file.read_text(encoding="utf-8")
         for lineno, line in enumerate(text.splitlines(), start=1):
-            for old, new in _violations_in_line(line, shims, src_root):
+            for old, new in _violations_in_line(line, shims, src_root, package):
                 messages.append(f"{rel}:{lineno}: {old} -> use {new}")
     return messages
 
@@ -269,9 +347,11 @@ def test_whole_tree_scan_finds_and_formats_real_hits():
     for message in messages:
         found = _VIOLATION_RE.match(message)
         line = (_REPO_ROOT / found["file"]).read_text(encoding="utf-8").splitlines()[int(found["line"]) - 1]
-        # Checked in two halves, not as the literal dotted path: a legitimate
-        # hit can spell it across the line (`from zotero_mcp import utils`).
-        assert "zotero_mcp" in line and "utils" in line, (
+        # Not checked as the literal dotted path: a legitimate hit can spell it
+        # across the line (`from zotero_mcp import utils`) or leave the package
+        # implicit altogether (`from .utils import ...`, resolved against the
+        # file's own package), in which case `zotero_mcp` is not on the line.
+        assert "utils" in line and ("zotero_mcp" in line or line.lstrip().startswith("from .")), (
             f"{message} points at a line that does not reference the old path: {line!r}"
         )
 
@@ -457,6 +537,128 @@ class TestShimMatchSubpackageSubmodule:
         assert _violations_in_line(
             "from zotero_mcp.semantic_search import get_zotero_client", self.SHIMS, semantic_search_src_root
         ) == [("zotero_mcp.semantic_search", "zotero_mcp.semantic_search.engine")]
+
+
+@pytest.fixture
+def relative_import_tree(tmp_path):
+    """A fake repo shaped like this PR leaves the real one: a package root
+    next to an `attachments/` subpackage, with one relative import per file.
+
+    The point of a tree rather than four strings is that nothing in a line
+    like ``from . import fulltext_cache`` says what ``.`` is — only the path
+    of the file holding it does, so a scan has to derive the package from the
+    file it is reading.
+    """
+    src = tmp_path / "src" / "zotero_mcp"
+    (src / "attachments").mkdir(parents=True)
+    (src / "__init__.py").write_text("")
+    (src / "attachments" / "__init__.py").write_text("")
+    # `.` is `zotero_mcp`, so this is the shimmed old path.
+    (src / "local_db.py").write_text("from . import fulltext_cache\n")
+    # `.` is `zotero_mcp.attachments`, so this is the new path, not the shim.
+    (src / "attachments" / "pdf.py").write_text("from . import fulltext_cache\n")
+    # `..` climbs back out to `zotero_mcp`, so this is the shimmed old path.
+    (src / "attachments" / "pdf_layout.py").write_text("from ..extract import extract_text\n")
+    return tmp_path
+
+
+class TestRelativeImports:
+    """A relative import must be resolved against its own file's package
+    before it is matched, or it is invisible to the guard.
+
+    The two riskiest sites in the PR that moved `attachments/` were written
+    in exactly this form and were caught by hand. What a missed one costs is
+    not silence: `zotero_mcp.attachments.fulltext_cache` is not where a shim
+    lives, so the subpackage forms below fail at import time with
+    `ModuleNotFoundError` rather than resolving through one. The guard is
+    here to name the move that has to happen, in the PR making it.
+    """
+
+    SHIMS = {
+        "zotero_mcp.extract": "zotero_mcp.attachments.extract",
+        "zotero_mcp.fulltext_cache": "zotero_mcp.attachments.fulltext_cache",
+    }
+
+    def test_single_dot_import_at_the_package_root_is_flagged(self):
+        assert _violations_in_line("from . import fulltext_cache", self.SHIMS, package="zotero_mcp") == [
+            ("zotero_mcp.fulltext_cache", "zotero_mcp.attachments.fulltext_cache")
+        ]
+
+    def test_from_dot_module_import_name_is_flagged(self):
+        assert _violations_in_line("from .extract import extract_text", self.SHIMS, package="zotero_mcp") == [
+            ("zotero_mcp.extract", "zotero_mcp.attachments.extract")
+        ]
+
+    def test_multi_dot_import_out_of_a_subpackage_is_flagged(self):
+        """``..`` inside `attachments/` climbs back to `zotero_mcp`, landing
+        on the old path — the form that survives a move looking plausible."""
+        assert _violations_in_line(
+            "from ..extract import extract_text", self.SHIMS, package="zotero_mcp.attachments"
+        ) == [("zotero_mcp.extract", "zotero_mcp.attachments.extract")]
+
+    def test_the_same_line_inside_the_new_subpackage_is_not_flagged(self):
+        """The same text, one package deeper, means the *new* path — proof
+        the resolution is being done rather than the dot ignored."""
+        deeper = "zotero_mcp.attachments"
+        assert _violations_in_line("from . import fulltext_cache", self.SHIMS, package=deeper) == []
+        assert _violations_in_line("from .extract import extract_text", self.SHIMS, package=deeper) == []
+
+    def test_a_relative_import_outside_the_package_is_not_flagged(self):
+        """`tests/live/conftest.py` does `from ._discovery import discover`;
+        resolved against its own package that is `live._discovery`, which is
+        not a shim row and must not be matched as one."""
+        assert _violations_in_line("from ._discovery import discover", self.SHIMS, package="live") == []
+
+    def test_dots_climbing_past_the_top_resolve_to_nothing(self):
+        """Python rejects this too; it must not be guessed into a match."""
+        assert _violations_in_line("from ..extract import extract_text", self.SHIMS, package="zotero_mcp") == []
+        assert _violations_in_line("from . import extract", self.SHIMS, package="") == []
+
+    def test_absolute_imports_are_unaffected_by_the_resolution(self):
+        assert _violations_in_line("from zotero_mcp.extract import extract_text", self.SHIMS, package="zotero_mcp") == [
+            ("zotero_mcp.extract", "zotero_mcp.attachments.extract")
+        ]
+
+    def test_a_scan_resolves_each_file_against_its_own_package(self, relative_import_tree):
+        """End to end over a tree: same import text in two files, flagged in
+        the one where it reaches a shim and not in the other, plus the
+        multi-dot case — all of it decided from each file's path."""
+        src_root = relative_import_tree / "src"
+        files = sorted((src_root / "zotero_mcp").rglob("*.py"))
+        messages = _find_violations(files, self.SHIMS, relative_import_tree, src_root)
+
+        assert sorted(messages) == [
+            "src/zotero_mcp/attachments/pdf_layout.py:1: zotero_mcp.extract -> use zotero_mcp.attachments.extract",
+            "src/zotero_mcp/local_db.py:1: zotero_mcp.fulltext_cache -> use zotero_mcp.attachments.fulltext_cache",
+        ]
+
+
+class TestPackageOf:
+    """The package a file's relative imports resolve against, derived from
+    its path — for a plain module, for the `__init__.py` that *is* the
+    package, and for a file the import root does not contain.
+    """
+
+    def test_plain_module_at_the_package_root(self, tmp_path):
+        src_root = tmp_path / "src"
+        assert _package_of(src_root / "zotero_mcp" / "local_db.py", src_root) == "zotero_mcp"
+
+    def test_module_in_a_subpackage(self, tmp_path):
+        src_root = tmp_path / "src"
+        assert _package_of(src_root / "zotero_mcp" / "attachments" / "pdf.py", src_root) == "zotero_mcp.attachments"
+
+    def test_package_init_is_its_own_package(self, tmp_path):
+        src_root = tmp_path / "src"
+        init = src_root / "zotero_mcp" / "attachments" / "__init__.py"
+        assert _package_of(init, src_root) == "zotero_mcp.attachments"
+
+    def test_test_file_is_counted_from_the_tests_directory(self, tmp_path):
+        tests_root = tmp_path / "tests"
+        assert _package_of(tests_root / "attachments" / "test_extract.py", tests_root) == "attachments"
+        assert _package_of(tests_root / "test_module_layout.py", tests_root) == ""
+
+    def test_file_outside_the_import_root_has_no_package(self, tmp_path):
+        assert _package_of(tmp_path / "scripts" / "measure.py", tmp_path / "src") == ""
 
 
 class TestModuleDottedPath:
