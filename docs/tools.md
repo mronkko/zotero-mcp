@@ -34,6 +34,7 @@ group name is an error at startup rather than a silent no-op.
 | `libraries` | **on** | List and switch between personal/group libraries |
 | `search-admin` | **on** | Build and inspect the semantic search index |
 | `pdf-geometry` | **on** | Page layout and PDF outline — pairs with area annotations |
+| `reader` | off | `zotero_open_in_reader` — show items in the Zotero desktop reader (Zotero on the same machine) |
 | `chatgpt-connector` | auto | The `search`/`fetch` pair required by ChatGPT deep research |
 
 `chatgpt-connector` is scoped by transport: it turns on automatically when the
@@ -79,6 +80,7 @@ Example (Claude Desktop / Claude Code):
 - `zotero_get_item_children`: Get attachments and notes for one item or many (pass an array of keys)
 - `zotero_read_pdf_pages`: Read a page range of a PDF as Markdown, with pages whose math, figures or tables the text garbles flagged; `format="image"` returns the pages as images, and `rect=[x, y, width, height]` zooms into one region
 - `zotero_get_pdf_outline`: Extract the table of contents / outline from a PDF attachment
+- `zotero_open_in_reader` (`reader` group): Open items, attachments or annotations in the Zotero desktop reader, optionally at a page and selecting the item in the library pane; in web mode it returns the `zotero://` links instead
 
 ### 📝 Annotation & notes tools
 - `zotero_get_annotations`: Get annotations (including direct PDF extraction); use `format="json"` for normalized records suitable for scripts and other MCP tools

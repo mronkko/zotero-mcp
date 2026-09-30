@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`zotero_open_in_reader` shows items in the Zotero desktop reader** — the MCP counterpart of `zotero-cli open`. Pass item, attachment or annotation keys (up to 10); each opens a reader tab, a regular item opening its PDF, an annotation opening its PDF scrolled to it. `page` jumps to a page, and `select=True` also selects the item in the library pane. Group libraries are linked through `groups/<id>`. In web mode nothing is opened and the `zotero://` links are returned. It is in a new opt-in `reader` toolset (`ZOTERO_MCP_TOOLSETS=reader`), since it only helps when Zotero runs on the same machine as the server.
+
 ## [0.13.1] - 2026-09-23
 
 ### Added

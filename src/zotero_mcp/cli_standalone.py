@@ -1230,34 +1230,20 @@ def cmd_path(args):
 
 def _reader_url(attachment_key: str, *, page: int | None = None,
                 annotation_key: str | None = None) -> str:
-    """A zotero://open-pdf link that Zotero's own protocol handler resolves.
+    """A zotero://open-pdf link into the active library.
 
     page is 1-based and positional (Zotero subtracts one to get pageIndex),
     the same numbering `read` uses, not the printed page label.
     """
-    from urllib.parse import urlencode
-
     from zotero_mcp import client as _client
-    group_id = _client.get_active_group_id()
-    library = f"groups/{group_id}" if group_id else "library"
-    params = {}
-    if annotation_key:
-        params["annotation"] = annotation_key
-    elif page:
-        params["page"] = page
-    query = f"?{urlencode(params)}" if params else ""
-    return f"zotero://open-pdf/{library}/items/{attachment_key}{query}"
+    from zotero_mcp import reader_links
+    return reader_links.reader_url(attachment_key, group_id=_client.get_active_group_id(),
+                                   page=page, annotation_key=annotation_key)
 
 
 def _launch_url(url: str) -> None:
-    import os
-    import subprocess
-    if sys.platform == "darwin":
-        subprocess.run(["open", url], check=True)
-    elif sys.platform == "win32":
-        os.startfile(url)  # noqa: S606 -- a zotero:// link, not a path
-    else:
-        subprocess.run(["xdg-open", url], check=True)
+    from zotero_mcp import reader_links
+    reader_links.launch_url(url)
 
 
 def cmd_open(args):

@@ -7,6 +7,7 @@ from zotero_mcp.tools import (  # noqa: F401
     item_parent,
     local_auth,
     read_pdf,
+    reader,
     retrieval,
     search,
     synthesis,

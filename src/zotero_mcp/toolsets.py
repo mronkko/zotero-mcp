@@ -108,6 +108,9 @@ TOOLSETS: dict[str, frozenset[str]] = {
             "zotero_get_pdf_outline",
         }
     ),
+    # Opening items in the Zotero desktop reader. Only useful when Zotero runs
+    # on the same machine as the server and a person is watching it.
+    "reader": frozenset({"zotero_open_in_reader"}),
     # The ChatGPT deep-research connector contract, which requires tools named
     # exactly ``search`` and ``fetch``. Meaningless over stdio, so this group
     # is transport-scoped rather than listed in DEFAULT_ON; see
