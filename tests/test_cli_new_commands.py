@@ -177,9 +177,13 @@ class TestOpen:
 
     def _run(self, zot, group_id=0, **kwargs):
         args = _args(**{"item_key": None, "page": None, "annotation": None, **kwargs})
+        # Patch the module cmd_open will import, not the name "zotero_mcp.client":
+        # a test that swaps sys.modules["zotero_mcp.client"] (test_chroma_client_real)
+        # leaves the two pointing at different objects.
+        from zotero_mcp import client
         with patch("zotero_mcp.cli_standalone.setup_zotero_environment"), \
-             patch("zotero_mcp.client.get_zotero_client", return_value=zot), \
-             patch("zotero_mcp.client.get_active_group_id", return_value=group_id), \
+             patch.object(client, "get_zotero_client", return_value=zot), \
+             patch.object(client, "get_active_group_id", return_value=group_id), \
              patch("zotero_mcp.cli_standalone._launch_url") as launch:
             cli_standalone.cmd_open(args)
         return launch.call_args.args[0]
@@ -190,7 +194,8 @@ class TestOpen:
         zot.children.return_value = [{"key": "A1", "data": {
             "itemType": "attachment", "contentType": "application/pdf",
             "filename": "x.pdf", "title": "PDF"}}]
-        with patch("zotero_mcp.client._paginate", side_effect=lambda f, k: f(k)):
+        from zotero_mcp import client
+        with patch.object(client, "_paginate", side_effect=lambda f, k: f(k)):
             url = self._run(zot, item_key="P1", page=5)
         assert url == "zotero://open-pdf/library/items/A1?page=5"
 
